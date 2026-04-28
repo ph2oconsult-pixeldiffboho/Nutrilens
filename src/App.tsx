@@ -34,6 +34,10 @@ export default function App() {
     deleteMeal,
     addWeight,
     addMood,
+    resetToday,
+    clearWeightHistory,
+    clearAllHistory,
+    resetTargets,
     updateTargets,
   } = useNutritionTracker();
 
@@ -63,6 +67,7 @@ export default function App() {
                 nextGuidance={nextGuidance}
                 proteinStatus={proteinStatus}
                 onNavigateToHistory={() => setCurrentView('trends')}
+                onResetToday={resetToday}
               />
             </motion.div>
           )}
@@ -100,11 +105,13 @@ export default function App() {
                   targets={targets}
                   onAddWeight={addWeight}
                   onAddMood={addMood}
+                  onClearHistory={clearWeightHistory}
                 />
                 <div className="h-[1px] w-full bg-white/[0.03] mx-6" />
                 <MealHistory
                   meals={meals}
                   onDelete={deleteMeal}
+                  onClearAll={clearAllHistory}
                 />
               </div>
             </motion.div>
@@ -121,6 +128,7 @@ export default function App() {
               <Settings
                 targets={targets}
                 onUpdate={updateTargets}
+                onResetDefaults={resetTargets}
               />
             </motion.div>
           )}

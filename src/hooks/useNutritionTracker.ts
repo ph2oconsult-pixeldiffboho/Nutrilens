@@ -153,6 +153,25 @@ export function useNutritionTracker() {
     setMoodEntries(prev => [...prev].slice(-50).concat(newEntry));
   };
 
+  const resetToday = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    setMeals(prev => prev.filter(m => m.timestamp < today.getTime()));
+  };
+
+  const clearWeightHistory = () => {
+    setWeightEntries([]);
+  };
+
+  const clearAllHistory = () => {
+    setMeals([]);
+    setMoodEntries([]);
+  };
+
+  const resetTargets = () => {
+    setTargets(DEFAULT_TARGETS);
+  };
+
   const weightTrend = useMemo(() => {
     if (weightEntries.length === 0) return 0;
     // 7-day rolling average of the most recent 7 entries or all if less
@@ -196,6 +215,10 @@ export function useNutritionTracker() {
     deleteMeal,
     addWeight,
     addMood,
+    resetToday,
+    clearWeightHistory,
+    clearAllHistory,
+    resetTargets,
     updateTargets: setTargets,
     isUpdating,
   };

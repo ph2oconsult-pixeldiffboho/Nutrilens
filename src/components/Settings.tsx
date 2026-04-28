@@ -11,9 +11,10 @@ import { DEFAULT_TARGETS } from '../constants';
 interface SettingsProps {
   targets: NutritionTargets;
   onUpdate: (targets: NutritionTargets) => void;
+  onResetDefaults: () => void;
 }
 
-export function Settings({ targets, onUpdate }: SettingsProps) {
+export function Settings({ targets, onUpdate, onResetDefaults }: SettingsProps) {
   const [localTargets, setLocalTargets] = useState(targets);
   const [isSaved, setIsSaved] = useState(false);
 
@@ -25,7 +26,12 @@ export function Settings({ targets, onUpdate }: SettingsProps) {
   };
 
   const handleReset = () => {
-    setLocalTargets(DEFAULT_TARGETS);
+    if (confirm("Reset nutrition targets to defaults?")) {
+      onResetDefaults();
+      setLocalTargets(DEFAULT_TARGETS);
+      setIsSaved(true);
+      setTimeout(() => setIsSaved(false), 2000);
+    }
   };
 
   const handleChange = (field: keyof NutritionTargets, value: string) => {
@@ -124,6 +130,7 @@ export function Settings({ targets, onUpdate }: SettingsProps) {
               type="button"
               onClick={handleReset}
               className="w-14 h-14 rounded-full border border-white/[0.05] text-white/20 hover:text-accent transition-all flex items-center justify-center hover:bg-white/[0.02]"
+              id="reset-targets-btn"
             >
               <RotateCcw size={18} />
             </button>

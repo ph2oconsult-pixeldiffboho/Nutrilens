@@ -17,6 +17,7 @@ interface TrendsProps {
   targets: NutritionTargets;
   onAddWeight: (weight: number) => void;
   onAddMood: (mood: MoodType) => void;
+  onClearHistory: () => void;
 }
 
 export function Trends({ 
@@ -26,7 +27,8 @@ export function Trends({
   moodInsights, 
   targets,
   onAddWeight,
-  onAddMood
+  onAddMood,
+  onClearHistory
 }: TrendsProps) {
   const [weightInput, setWeightInput] = useState('');
   const [isRecording, setIsRecording] = useState(false);
@@ -157,7 +159,20 @@ export function Trends({
         <div className="apple-card p-10 space-y-10 bg-white/[0.01] border-white/[0.02]">
           <div className="flex justify-between items-start">
              <div className="space-y-1">
-                <p className="text-secondary text-[10px] font-bold uppercase tracking-widest">Current</p>
+                <div className="flex items-center gap-4">
+                  <p className="text-secondary text-[10px] font-bold uppercase tracking-widest">Current</p>
+                  {weightEntries.length > 0 && (
+                    <button 
+                      onClick={() => {
+                        if (confirm("Clear all weight history?")) onClearHistory();
+                      }}
+                      className="text-[10px] font-bold uppercase tracking-widest text-accent hover:text-white transition-colors"
+                      id="reset-weight-btn"
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
                 <div className="flex items-baseline gap-2">
                   <p className="text-6xl font-bold tracking-tighter tabular-nums text-text-primary">
                     {currentWeight || "—"}

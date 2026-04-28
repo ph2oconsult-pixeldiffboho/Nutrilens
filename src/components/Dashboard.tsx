@@ -16,9 +16,10 @@ interface DashboardProps {
   nextGuidance: string;
   proteinStatus: string;
   onNavigateToHistory: () => void;
+  onResetToday: () => void;
 }
 
-export function Dashboard({ progress, targets, todayMeals, insightText, nextGuidance, proteinStatus, onNavigateToHistory }: DashboardProps) {
+export function Dashboard({ progress, targets, todayMeals, insightText, nextGuidance, proteinStatus, onNavigateToHistory, onResetToday }: DashboardProps) {
   const [showProteinNumbers, setShowProteinNumbers] = useState(false);
   const remainingCals = targets.calories - progress.calories;
   const calPercent = Math.min((progress.calories / targets.calories) * 100, 100);
@@ -123,7 +124,20 @@ export function Dashboard({ progress, targets, todayMeals, insightText, nextGuid
       {/* Recent Activity */}
       <section className="space-y-6">
         <div className="flex items-end justify-between px-1 text-white">
-          <h2 className="text-[10px] font-bold uppercase tracking-widest text-secondary">Today's Meals</h2>
+          <div className="flex items-center gap-4">
+            <h2 className="text-[10px] font-bold uppercase tracking-widest text-secondary">Today's Meals</h2>
+            {todayMeals.length > 0 && (
+              <button 
+                onClick={() => {
+                  if (confirm("Clear all logs for today?")) onResetToday();
+                }}
+                className="text-[10px] font-bold uppercase tracking-widest text-accent hover:text-white transition-colors"
+                id="reset-today-btn"
+              >
+                Reset
+              </button>
+            )}
+          </div>
           <button 
             onClick={onNavigateToHistory}
             className="text-[10px] font-bold uppercase tracking-widest text-secondary hover:text-white transition-colors flex items-center gap-1"

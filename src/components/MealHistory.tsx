@@ -9,9 +9,10 @@ import { Trash2, Calendar } from 'lucide-react';
 interface MealHistoryProps {
   meals: Meal[];
   onDelete: (id: string) => void;
+  onClearAll: () => void;
 }
 
-export function MealHistory({ meals, onDelete }: MealHistoryProps) {
+export function MealHistory({ meals, onDelete, onClearAll }: MealHistoryProps) {
   const groupedMeals = meals.reduce((acc, meal) => {
     const date = new Date(meal.timestamp).toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
     if (!acc[date]) acc[date] = [];
@@ -21,9 +22,22 @@ export function MealHistory({ meals, onDelete }: MealHistoryProps) {
 
   return (
     <div className="pb-40 px-6 pt-12">
-      <header className="space-y-1 mb-12">
-        <p className="text-secondary text-sm font-medium tracking-tight uppercase">Activity</p>
-        <h1 className="text-4xl font-bold tracking-tight">History</h1>
+      <header className="space-y-1 mb-12 flex justify-between items-end">
+        <div className="space-y-1">
+          <p className="text-secondary text-sm font-medium tracking-tight uppercase">Activity</p>
+          <h1 className="text-4xl font-bold tracking-tight text-white">History</h1>
+        </div>
+        {meals.length > 0 && (
+          <button 
+            onClick={() => {
+              if (confirm("Clear all meal records? This cannot be undone.")) onClearAll();
+            }}
+            className="text-[10px] font-bold uppercase tracking-widest text-accent hover:text-white transition-colors"
+            id="clear-all-history-btn"
+          >
+            Clear All
+          </button>
+        )}
       </header>
 
       <div className="space-y-12">
