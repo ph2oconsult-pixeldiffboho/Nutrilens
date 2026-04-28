@@ -12,9 +12,11 @@ interface SettingsProps {
   targets: NutritionTargets;
   onUpdate: (targets: NutritionTargets) => void;
   onResetDefaults: () => void;
+  onClearWeights: () => void;
+  onClearAll: () => void;
 }
 
-export function Settings({ targets, onUpdate, onResetDefaults }: SettingsProps) {
+export function Settings({ targets, onUpdate, onResetDefaults, onClearWeights, onClearAll }: SettingsProps) {
   const [localTargets, setLocalTargets] = useState(targets);
   const [isSaved, setIsSaved] = useState(false);
 
@@ -125,28 +127,52 @@ export function Settings({ targets, onUpdate, onResetDefaults }: SettingsProps) 
             </div>
           </div>
 
-          <div className="flex gap-4 pt-4">
-            <button
-              type="button"
-              onClick={handleReset}
-              className="w-14 h-14 rounded-full border border-white/[0.05] text-white/20 hover:text-accent transition-all flex items-center justify-center hover:bg-white/[0.02]"
-              id="reset-targets-btn"
-            >
-              <RotateCcw size={18} />
-            </button>
+          <div className="grid grid-cols-2 gap-4 pt-10 border-t border-white/[0.03]">
+            <div className="space-y-4">
+              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-secondary/60 px-1">Reset Targets</label>
+              <button
+                type="button"
+                onClick={handleReset}
+                className="w-full h-14 rounded-2xl border border-white/[0.05] text-[10px] font-bold uppercase tracking-widest text-text-secondary hover:bg-white/[0.02] transition-all flex items-center justify-center gap-2"
+                id="reset-targets-btn"
+              >
+                <RotateCcw size={14} />
+                Defaults
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-secondary/60 px-1">Clear Data</label>
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm("Permanently clear ALL weight and meal history?")) {
+                    onClearAll();
+                    onClearWeights();
+                  }
+                }}
+                className="w-full h-14 rounded-2xl border border-white/[0.05] text-[10px] font-bold uppercase tracking-widest text-accent hover:bg-accent/5 transition-all flex items-center justify-center"
+                id="factory-reset-btn"
+              >
+                Factory Reset
+              </button>
+            </div>
+          </div>
+
+          <div className="pt-6">
             <button
               type="submit"
-              className={`flex-1 h-14 rounded-full font-bold flex items-center justify-center gap-2 transition-all active:scale-95 shadow-xl ${
+              className={`w-full h-16 rounded-full font-bold flex items-center justify-center gap-2 transition-all active:scale-95 shadow-xl ${
                 isSaved ? 'bg-accent/40 text-white shadow-accent/10' : 'bg-accent text-black shadow-accent/5'
               }`}
             >
               {isSaved ? (
                 <>
                   <Check size={18} />
-                  Saved
+                  Settings Saved
                 </>
               ) : (
-                'Save'
+                'Save Preferences'
               )}
             </button>
           </div>
