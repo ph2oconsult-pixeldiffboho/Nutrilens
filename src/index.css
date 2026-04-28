@@ -1,0 +1,42 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --color-app-bg: #0b0b0f;
+  --color-card-bg: #141416;
+  --color-surface-secondary: #1a1a1d;
+  --color-accent: #d4a373;
+  --color-text-primary: #f5f5f5;
+  --color-text-secondary: #a1a1aa;
+}
+
+@layer base {
+  body {
+    @apply bg-app-bg text-text-primary antialiased font-sans selection:bg-accent selection:text-black;
+  }
+}
+
+.apple-card {
+  @apply bg-card-bg border border-white/[0.03] rounded-[2.5rem] shadow-[0_8px_32px_rgba(0,0,0,0.5)];
+}
+
+.glass-pill {
+  @apply bg-white/[0.03] backdrop-blur-xl border border-white/[0.05] rounded-full;
+}
+
+.text-secondary {
+  @apply text-text-secondary;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
