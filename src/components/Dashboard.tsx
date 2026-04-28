@@ -26,9 +26,14 @@ export function Dashboard({ progress, targets, todayMeals, insightText, nextGuid
 
   return (
     <div className="space-y-12 px-6 pt-12 pb-32">
-      <header className="space-y-1">
-        <p className="text-secondary text-sm font-medium tracking-tight uppercase">Dashboard</p>
-        <h1 className="text-4xl font-bold tracking-tight text-white">Daily Focus</h1>
+      <header className="flex justify-between items-start">
+        <div className="space-y-1">
+          <p className="text-secondary text-sm font-medium tracking-tight uppercase italic">Nutilens</p>
+          <h1 className="text-4xl font-bold tracking-tight text-white">Daily Focus</h1>
+        </div>
+        <div className="w-10 h-10 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center">
+            <div className="w-4 h-4 rounded-full border-2 border-accent/40" />
+        </div>
       </header>
 
       {/* Main Energy Card - Focus on Remaining */}

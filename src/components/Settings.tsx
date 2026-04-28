@@ -49,8 +49,8 @@ export function Settings({ targets, onUpdate, onResetDefaults, onClearWeights, o
   return (
     <div className="pb-40 px-6 pt-12">
       <header className="space-y-1 mb-12">
-        <p className="text-secondary text-sm font-medium tracking-tight uppercase">Preferences</p>
-        <h1 className="text-4xl font-bold tracking-tight">Targets</h1>
+        <p className="text-secondary text-sm font-medium tracking-tight uppercase">Nutilens</p>
+        <h1 className="text-4xl font-bold tracking-tight text-white">Settings</h1>
       </header>
 
       <form onSubmit={handleSubmit} className="space-y-12">

@@ -1,5 +1,5 @@
 {
-  "name": "Nutrilens",
+  "name": "Nutilens",
   "description": "Mobile-first calorie and nutrition tracker that uses AI to parse meal descriptions from text and voice.",
   "requestFramePermissions": ["microphone"],
   "majorCapabilities": []
