@@ -10,7 +10,7 @@ import { parseMealDescription, parseMealImage, GeminiResponse } from '../service
 import { FoodItem, MoodType, InputQuality } from '../types';
 
 interface AddMealProps {
-  onSave: (description: string, items: FoodItem[], mood?: MoodType) => void;
+  onSave: (description: string, items: FoodItem[], mood?: MoodType, timestamp?: number) => void;
   onCancel: () => void;
 }
 
@@ -24,6 +24,10 @@ export function AddMeal({ onSave, onCancel }: AddMealProps) {
   const [selectedMood, setSelectedMood] = useState<MoodType | null>(null);
   const [refinementStep, setRefinementStep] = useState<{ itemIndex: number, question: string, options: string[] } | null>(null);
   const [showReview, setShowReview] = useState(false);
+  const [logTime, setLogTime] = useState(() => {
+    const now = new Date();
+    return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  });
 
   const handleParse = async (manualText?: string) => {
     const textToParse = manualText || description;
@@ -387,43 +391,67 @@ export function AddMeal({ onSave, onCancel }: AddMealProps) {
                   </div>
                 ))}
 
-                <div className="space-y-4 pt-4">
-                  <h3 className="text-secondary text-[10px] font-bold uppercase tracking-widest px-1">How do you feel?</h3>
-                  <div className="grid grid-cols-3 gap-2">
-                    {(['Energised', 'Good', 'Tired', 'Hungry', 'Bloated', 'Stressed'] as MoodType[]).map(mood => (
-                      <button
-                        key={mood}
-                        onClick={() => setSelectedMood(selectedMood === mood ? null : mood)}
-                        className={`h-11 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all ${
-                          selectedMood === mood 
-                            ? 'bg-accent/10 text-accent border border-accent/20 shadow-[0_0_20px_rgba(212,163,115,0.1)]' 
-                            : 'bg-white/[0.02] text-text-secondary border border-white/[0.02] hover:bg-white/[0.04]'
-                        }`}
-                      >
-                        {mood}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-4">
+                      <h3 className="text-secondary text-[10px] font-bold uppercase tracking-widest px-1">How do you feel?</h3>
+                      <div className="grid grid-cols-2 gap-2">
+                        {(['Energised', 'Good', 'Tired', 'Hungry', 'Bloated', 'Stressed'] as MoodType[]).slice(0, 4).map(mood => (
+                          <button
+                            key={mood}
+                            onClick={() => setSelectedMood(selectedMood === mood ? null : mood)}
+                            className={`h-11 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all ${
+                              selectedMood === mood 
+                                ? 'bg-accent/10 text-accent border border-accent/20 shadow-[0_0_20px_rgba(212,163,115,0.1)]' 
+                                : 'bg-white/[0.02] text-text-secondary border border-white/[0.02] hover:bg-white/[0.04]'
+                            }`}
+                          >
+                            {mood}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
 
-                <div className="grid grid-cols-2 gap-4 pt-8">
-                  <button
-                    onClick={() => {
-                      setShowReview(false);
-                      setRefinementStep(null);
-                    }}
-                    className="h-14 rounded-full border border-white/[0.05] font-bold hover:bg-white/[0.02] transition-all text-secondary text-sm"
-                  >
-                    Add More
-                  </button>
-                  <button
-                    onClick={() => onSave(`Meal: ${stagedItems.map(i => i.name).join(', ')}`, stagedItems, selectedMood || undefined)}
-                    className="h-14 rounded-full bg-accent text-black font-bold flex items-center justify-center gap-2 hover:bg-accent/90 active:scale-95 transition-all shadow-xl shadow-accent/5"
-                  >
-                    <Check size={20} />
-                    Log
-                  </button>
-                </div>
+                    <div className="space-y-4">
+                      <h3 className="text-secondary text-[10px] font-bold uppercase tracking-widest px-1">Log Time</h3>
+                      <div className="apple-card bg-white/[0.02] border-white/[0.05] p-3 flex items-center justify-center h-24">
+                        <input 
+                          type="time" 
+                          value={logTime}
+                          onChange={(e) => setLogTime(e.target.value)}
+                          className="bg-transparent text-3xl font-bold tracking-tight text-text-primary outline-none text-center tabular-nums"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 pt-8">
+                    <button
+                      onClick={() => {
+                        setShowReview(false);
+                        setRefinementStep(null);
+                      }}
+                      className="h-14 rounded-full border border-white/[0.05] font-bold hover:bg-white/[0.02] transition-all text-secondary text-sm"
+                    >
+                      Add More
+                    </button>
+                    <button
+                      onClick={() => {
+                        const [hours, minutes] = logTime.split(':').map(Number);
+                        const date = new Date();
+                        date.setHours(hours, minutes, 0, 0);
+                        onSave(
+                          `Meal: ${stagedItems.map(i => i.name).join(', ')}`, 
+                          stagedItems, 
+                          selectedMood || undefined,
+                          date.getTime()
+                        );
+                      }}
+                      className="h-14 rounded-full bg-accent text-black font-bold flex items-center justify-center gap-2 hover:bg-accent/90 active:scale-95 transition-all shadow-xl shadow-accent/5"
+                    >
+                      <Check size={20} />
+                      Log
+                    </button>
+                  </div>
               </div>
             </motion.div>
           )}

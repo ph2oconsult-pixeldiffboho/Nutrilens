@@ -41,8 +41,8 @@ export default function App() {
     updateTargets,
   } = useNutritionTracker();
 
-  const handleSaveMeal = async (description: string, items: any[], mood?: any) => {
-    const mealId = await addMeal(description, items);
+  const handleSaveMeal = async (description: string, items: any[], mood?: any, timestamp?: number) => {
+    const mealId = await addMeal(description, items, timestamp);
     if (mood) addMood(mood, mealId);
     setCurrentView('dashboard');
   };

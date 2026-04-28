@@ -86,12 +86,14 @@ export function useNutritionTracker() {
     updateDashboard();
   }, [todayMeals, targets]);
 
-  const addMeal = async (description: string, items: FoodItem[]) => {
+  const addMeal = async (description: string, items: FoodItem[], customTimestamp?: number) => {
     // Duplicate detection: same description in the last 5 minutes
     const now = Date.now();
+    const timestamp = customTimestamp || now;
+    
     const isDuplicate = meals.some(m => 
       m.description.toLowerCase() === description.toLowerCase() && 
-      (now - m.timestamp) < 5 * 60 * 1000
+      Math.abs(timestamp - m.timestamp) < 5 * 60 * 1000
     );
 
     if (isDuplicate) {
@@ -118,7 +120,7 @@ export function useNutritionTracker() {
 
     const newMeal: Meal = {
       id: Math.random().toString(36).substring(2, 11),
-      timestamp: Date.now(),
+      timestamp,
       description,
       items,
       totalCalories: calories,

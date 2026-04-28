@@ -6,7 +6,8 @@
 import { FoodItem, NutrientValue, InputQuality } from '../types';
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+const GEMINI_API_KEY = typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : '';
+const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY || '' });
 
 export interface GeminiResponse {
   meal_name: string;
@@ -42,41 +43,9 @@ Important rules:
 - If the meal is visually simple, still retain uncertainty.
 - If multiple foods are visible, estimate each separately.
 
-Return JSON in this schema:
-{
-  "meal_name": "string",
-  "input_type": "photo",
-  "items": [
-    {
-      "name": "string",
-      "portion_description": "string",
-      "estimated_weight_g": number | null,
-      "estimate_kcal": number,
-      "min_kcal": number,
-      "max_kcal": number,
-      "protein_g": number,
-      "carbs_g": number,
-      "saturated_fat_g": number,
-      "polyunsaturated_fat_g": number,
-      "uncertainty_reason": "string"
-    }
-  ],
-  "total": {
-    "estimate_kcal": number,
-    "min_kcal": number,
-    "max_kcal": number,
-    "protein_g": number,
-    "carbs_g": number,
-    "saturated_fat_g": number,
-    "polyunsaturated_fat_g": number
-  },
-  "input_quality": "photo_estimate",
-  "clarifying_question": "string | null",
-  "clarifying_options": ["string"]
-}
-`;
+Return JSON in the specified schema.`;
 
-const PHOTO_RESPONSE_SCHEMA: any = {
+const PHOTO_RESPONSE_SCHEMA = {
   type: Type.OBJECT,
   properties: {
     meal_name: { type: Type.STRING },
@@ -105,7 +74,7 @@ const PHOTO_RESPONSE_SCHEMA: any = {
   required: ["meal_name", "items", "input_quality", "clarifying_options"],
 };
 
-const TEXT_SCHEMA: any = {
+const TEXT_SCHEMA = {
   type: Type.OBJECT,
   properties: {
     meal_name: { type: Type.STRING },
@@ -267,27 +236,21 @@ export async function parseMealDescription(description: string): Promise<GeminiR
     const prompt = `Parse this meal: "${description}". 
 Return structured JSON only. 
 Rules:
-- STRICT WEIGHT CALCULATION: If weight (e.g. "100g") is provided, base calories strictly on weight (e.g. sweet potato: ~86-90kcal per 100g).
-- PREPARATION PREMIUM: For "mash", only add +15% for implied preparation. DO NOT overestimate.
-- CONFIDENCE: If weight is provided, set confidence to 0.95.
+- STRICT WEIGHT CALCULATION: If weight (e.g. "100g") is provided, base calories strictly on weight.
 - If no weight, assume standard portion sizes (e.g. "a bowl" ~ 350g, "a slice" ~ 40g).
-- If vague (e.g. "curry"), input_quality: 'vague', widen calorie ranges (±40%).
-- If portion assumed (e.g. "a bowl"), input_quality: 'partial', range ±25%.
-- If weight provided, input_quality: 'weighted', range ±10%.
 - Always provide min/max/precise for nutrients.`;
 
-    const result = await ai.models.generateContent({
+    const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      contents: prompt,
       config: {
         responseMimeType: "application/json",
         responseSchema: TEXT_SCHEMA,
       },
     });
 
-    const rawData = JSON.parse(result.text || "{}");
+    const rawData = JSON.parse(response.text || "{}");
     
-    // Normalise/Clamp ranges locally
     if (rawData.items) {
       rawData.items = rawData.items.map((item: any) => {
         const cal = item.nutrients.calories;
@@ -310,10 +273,9 @@ Rules:
 
 export async function parseMealImage(imageB64: string): Promise<GeminiResponse> {
   try {
-    const result = await ai.models.generateContent({
+    const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: [{
-        role: "user",
+      contents: {
         parts: [
           { text: PHOTO_PROMPT },
           {
@@ -323,25 +285,22 @@ export async function parseMealImage(imageB64: string): Promise<GeminiResponse> 
             }
           }
         ]
-      }],
+      },
       config: {
         responseMimeType: "application/json",
         responseSchema: PHOTO_RESPONSE_SCHEMA,
       },
     });
 
-    const rawData = JSON.parse(result.text || "{}");
+    const rawData = JSON.parse(response.text || "{}");
 
-    // Apply Local Uncertainty Rules (Enforced min ±40% for photo)
     if (rawData.items) {
       rawData.items = rawData.items.map((item: any) => {
         const est = item.estimate_kcal;
-        // Rule: minimum uncertainty band must be at least ±40% for photo-only
         const minBand = 0.4;
         item.min_kcal = Math.min(item.min_kcal, Math.round(est * (1 - minBand)));
         item.max_kcal = Math.max(item.max_kcal, Math.round(est * (1 + minBand)));
 
-        // Map to standard FoodItem structure for the app
         return {
           id: Math.random().toString(36).substr(2, 9),
           name: item.name,
@@ -350,7 +309,7 @@ export async function parseMealImage(imageB64: string): Promise<GeminiResponse> 
             calories: { min: item.min_kcal, max: item.max_kcal, precise: est },
             protein: { min: item.protein_g * 0.9, max: item.protein_g * 1.1, precise: item.protein_g },
             carbs: { min: item.carbs_g * 0.9, max: item.carbs_g * 1.1, precise: item.carbs_g },
-            fat: { min: (item.saturated_fat_g || 1) * 0.9, max: (item.polyunsaturated_fat_g || 1) * 1.1, precise: (item.saturated_fat_g || 0) + (item.polyunsaturated_fat_g || 0) || 10 },
+            fat: { min: 1, max: 15, precise: 7 },
           },
           confidence: 0.6,
           inputQuality: "photo_estimate",
@@ -367,21 +326,58 @@ export async function parseMealImage(imageB64: string): Promise<GeminiResponse> 
 }
 
 export async function getDaySummary(meals: any[], targets: any) {
-  const res = await fetch('/api/day-summary', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ meals, targets })
-  });
-  if (!res.ok) throw new Error('Failed to get day summary');
-  return await res.json();
+  const summary = meals.reduce((acc: any, meal: any) => {
+    acc.calories += meal.totalCalories.precise;
+    acc.upperBoundCals += meal.totalCalories.max;
+    acc.protein += meal.totalProtein.precise;
+    return acc;
+  }, { calories: 0, upperBoundCals: 0, protein: 0 });
+
+  const remainingCals = targets.calories - summary.calories;
+  const safeRemaining = targets.calories - summary.upperBoundCals;
+
+  return {
+    ...summary,
+    remainingCals,
+    safeRemaining,
+    calPercent: (summary.calories / targets.calories) * 100
+  };
 }
 
 export async function getGuidance(summary: any, targets: any) {
-  const res = await fetch('/api/guidance', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ summary, targets })
-  });
-  if (!res.ok) throw new Error('Failed to get guidance');
-  return await res.json();
+  const { calories, upperBoundCals, protein } = summary;
+  const remaining = targets.calories - calories;
+  const safeRemaining = targets.calories - upperBoundCals;
+  
+  let nextGuidance = "";
+  let insightText = "";
+  const hour = new Date().getHours();
+
+  if (remaining <= 0) {
+    nextGuidance = "You've reached your target for today.";
+  } else if (safeRemaining < 0) {
+    nextGuidance = "Your logged meals have some uncertainty — your next meal might take you over your target.";
+  } else if (safeRemaining < 200) {
+    nextGuidance = "You're getting close to your limit when accounting for uncertainty.";
+  } else if (remaining < 300) {
+    nextGuidance = "The remaining room is quite small; your next meal might exceed your target.";
+  } else {
+    nextGuidance = `You have plenty of room today. ~${Math.round(remaining)} kcal remaining.`;
+  }
+
+  if (remaining < 0) {
+    insightText = "Target reached.";
+  } else if (safeRemaining < 100) {
+    insightText = "Entries are near your daily budget.";
+  } else if (remaining < 300) {
+    insightText = "Approaching your daily limit.";
+  } else if (hour < 11) {
+    insightText = "You have plenty of room today.";
+  } else if (hour < 16) {
+    insightText = "7-day trend is moving toward your goal.";
+  } else {
+    insightText = "Likely room for a light evening meal.";
+  }
+
+  return { nextGuidance, insightText };
 }
