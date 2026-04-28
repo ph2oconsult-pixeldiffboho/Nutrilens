@@ -129,6 +129,8 @@ export default function App() {
                 targets={targets}
                 onUpdate={updateTargets}
                 onResetDefaults={resetTargets}
+                onClearWeights={clearWeightHistory}
+                onClearAll={clearAllHistory}
               />
             </motion.div>
           )}
