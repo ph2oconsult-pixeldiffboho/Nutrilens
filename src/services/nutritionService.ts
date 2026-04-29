@@ -6,8 +6,8 @@
 import { FoodItem, NutrientValue, InputQuality } from '../types';
 import { GoogleGenAI, Type } from "@google/genai";
 
-const GEMINI_API_KEY = typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : '';
-const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY || '' });
+const GEMINI_API_KEY = (typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : '') || '';
+const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
 export interface GeminiResponse {
   meal_name: string;
@@ -28,10 +28,9 @@ Estimate:
 - best calorie estimate
 - minimum plausible calories
 - maximum plausible calories
-- protein
-- carbohydrates
-- saturated fat
-- polyunsaturated fat
+- protein (grams)
+- carbohydrates (grams)
+- fat (grams)
 - uncertainty reason
 - one clarifying question if needed
 
@@ -56,23 +55,24 @@ const PHOTO_RESPONSE_SCHEMA = {
         properties: {
           name: { type: Type.STRING },
           portion_description: { type: Type.STRING },
-          estimated_weight_g: { type: Type.NUMBER, nullable: true },
           estimate_kcal: { type: Type.NUMBER },
           min_kcal: { type: Type.NUMBER },
           max_kcal: { type: Type.NUMBER },
           protein_g: { type: Type.NUMBER },
           carbs_g: { type: Type.NUMBER },
+          fat_g: { type: Type.NUMBER },
           uncertainty_reason: { type: Type.STRING },
         },
-        required: ["name", "portion_description", "estimate_kcal", "min_kcal", "max_kcal", "protein_g", "carbs_g", "uncertainty_reason"],
+        required: ["name", "portion_description", "estimate_kcal", "min_kcal", "max_kcal", "protein_g", "carbs_g", "fat_g", "uncertainty_reason"],
       },
     },
     input_quality: { type: Type.STRING },
-    clarifying_question: { type: Type.STRING, nullable: true },
+    clarifying_question: { type: Type.STRING, description: "One question to narrow down uncertainty, or empty string if none." },
     clarifying_options: { type: Type.ARRAY, items: { type: Type.STRING } },
   },
-  required: ["meal_name", "items", "input_quality", "clarifying_options"],
+  required: ["meal_name", "items", "input_quality", "clarifying_question", "clarifying_options"],
 };
+
 
 const TEXT_SCHEMA = {
   type: Type.OBJECT,
@@ -133,11 +133,12 @@ const TEXT_SCHEMA = {
       },
     },
     input_quality: { type: Type.STRING },
-    clarifying_question: { type: Type.STRING, nullable: true },
+    clarifying_question: { type: Type.STRING },
     clarifying_options: { type: Type.ARRAY, items: { type: Type.STRING } },
   },
   required: ["meal_name", "items", "input_quality", "clarifying_options"],
 };
+
 
 const HEURISTICS: Record<string, { kcal: number; protein: number; unit: string; baseWeight?: number }> = {
   "sweet potato mash": { kcal: 105, protein: 1.8, unit: "100g", baseWeight: 100 },
@@ -241,7 +242,7 @@ Rules:
 - Always provide min/max/precise for nutrients.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-3.1-pro-preview",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -249,20 +250,34 @@ Rules:
       },
     });
 
-    const rawData = JSON.parse(response.text || "{}");
+    const text = response.text || "{}";
+    const rawData = JSON.parse(text);
     
     if (rawData.items) {
       rawData.items = rawData.items.map((item: any) => {
-        const cal = item.nutrients.calories;
-        cal.precise = Math.max(10, Math.min(2000, cal.precise));
-        cal.min = Math.max(5, Math.min(cal.precise, cal.min));
-        cal.max = Math.max(cal.precise, Math.min(3000, cal.max));
+        const nutrients = item.nutrients || {};
+        const cal = nutrients.calories || { precise: 0, min: 0, max: 0 };
+        const pro = nutrients.protein || { precise: 0, min: 0, max: 0 };
+        const crb = nutrients.carbs || { precise: 0, min: 0, max: 0 };
+        const fat = nutrients.fat || { precise: 0, min: 0, max: 0 };
+
+        cal.precise = Math.max(10, Math.min(2000, cal.precise || 0));
+        cal.min = Math.max(5, Math.min(cal.precise, cal.min || 0));
+        cal.max = Math.max(cal.precise, Math.min(3000, cal.max || 0));
+
         return {
           ...item,
-          id: item.id || Math.random().toString(36).substr(2, 9)
+          id: item.id || Math.random().toString(36).substr(2, 9),
+          nutrients: {
+            calories: cal,
+            protein: pro,
+            carbs: crb,
+            fat: fat
+          }
         };
       });
     }
+
 
     return rawData as GeminiResponse;
   } catch (error) {
@@ -273,15 +288,26 @@ Rules:
 
 export async function parseMealImage(imageB64: string): Promise<GeminiResponse> {
   try {
+    // Detect mime type
+    let mimeType = "image/jpeg";
+    if (imageB64.startsWith("data:")) {
+      const match = imageB64.match(/^data:([^;]+);base64,/);
+      if (match) {
+        mimeType = match[1];
+      }
+    }
+    
+    const base64Data = imageB64.includes(",") ? imageB64.split(",")[1] : imageB64;
+
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-3.1-pro-preview",
       contents: {
         parts: [
           { text: PHOTO_PROMPT },
           {
             inlineData: {
-              data: imageB64.split(",")[1] || imageB64,
-              mimeType: "image/jpeg"
+              data: base64Data,
+              mimeType: mimeType
             }
           }
         ]
@@ -292,24 +318,24 @@ export async function parseMealImage(imageB64: string): Promise<GeminiResponse> 
       },
     });
 
-    const rawData = JSON.parse(response.text || "{}");
+    const text = response.text || "{}";
+    const rawData = JSON.parse(text);
 
     if (rawData.items) {
       rawData.items = rawData.items.map((item: any) => {
-        const est = item.estimate_kcal;
-        const minBand = 0.4;
-        item.min_kcal = Math.min(item.min_kcal, Math.round(est * (1 - minBand)));
-        item.max_kcal = Math.max(item.max_kcal, Math.round(est * (1 + minBand)));
+        const est = item.estimate_kcal || 0;
+        const minVal = item.min_kcal || Math.round(est * 0.6);
+        const maxVal = item.max_kcal || Math.round(est * 1.4);
 
         return {
           id: Math.random().toString(36).substr(2, 9),
           name: item.name,
           servingSize: item.portion_description,
           nutrients: {
-            calories: { min: item.min_kcal, max: item.max_kcal, precise: est },
-            protein: { min: item.protein_g * 0.9, max: item.protein_g * 1.1, precise: item.protein_g },
-            carbs: { min: item.carbs_g * 0.9, max: item.carbs_g * 1.1, precise: item.carbs_g },
-            fat: { min: 1, max: 15, precise: 7 },
+            calories: { min: minVal, max: maxVal, precise: est },
+            protein: { min: (item.protein_g || 0) * 0.9, max: (item.protein_g || 0) * 1.1, precise: item.protein_g || 0 },
+            carbs: { min: (item.carbs_g || 0) * 0.9, max: (item.carbs_g || 0) * 1.1, precise: item.carbs_g || 0 },
+            fat: { min: (item.fat_g || 1) * 0.8, max: (item.fat_g || 1) * 1.2, precise: item.fat_g || 7 },
           },
           confidence: 0.6,
           inputQuality: "photo_estimate",
@@ -324,6 +350,7 @@ export async function parseMealImage(imageB64: string): Promise<GeminiResponse> 
     throw new Error("Unable to analyze this photo. Try using text or voice.");
   }
 }
+
 
 export async function getDaySummary(meals: any[], targets: any) {
   const summary = meals.reduce((acc: any, meal: any) => {
