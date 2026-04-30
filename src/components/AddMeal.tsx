@@ -16,6 +16,7 @@ interface AddMealProps {
 }
 
 export function AddMeal({ onSave, onCancel }: AddMealProps) {
+  const [flowStep, setFlowStep] = useState<'meal_selection' | 'input' | 'review' | 'success'>('meal_selection');
   const [description, setDescription] = useState('');
   const [isParsing, setIsParsing] = useState(false);
   const [stagedItems, setStagedItems] = useState<FoodItem[]>([]);
@@ -24,9 +25,7 @@ export function AddMeal({ onSave, onCancel }: AddMealProps) {
   const [error, setError] = useState<string | null>(null);
   const [selectedMood, setSelectedMood] = useState<MoodType | null>(null);
   const [selectedMealType, setSelectedMealType] = useState<MealType>('Lunch');
-  const [isSaved, setIsSaved] = useState(false);
   const [refinementStep, setRefinementStep] = useState<{ itemIndex: number, question: string, options: string[] } | null>(null);
-  const [showReview, setShowReview] = useState(false);
   const [logTime, setLogTime] = useState(() => {
     const now = new Date();
     return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
@@ -107,7 +106,7 @@ export function AddMeal({ onSave, onCancel }: AddMealProps) {
 
     const finalItems = [...stagedItems, ...newItems];
     setStagedItems(finalItems);
-    setShowReview(true);
+    setFlowStep('review');
     setDescription(''); 
     
     if (result.input_quality === 'vague' && result.clarifying_question) {
@@ -174,7 +173,7 @@ export function AddMeal({ onSave, onCancel }: AddMealProps) {
   const removeItem = (idx: number) => {
     const newItems = stagedItems.filter((_, i) => i !== idx);
     setStagedItems(newItems);
-    if (newItems.length === 0) setShowReview(false);
+    if (newItems.length === 0) setFlowStep('input');
   };
 
   const updateItemGrams = (index: number, grams: number) => {
@@ -269,7 +268,7 @@ export function AddMeal({ onSave, onCancel }: AddMealProps) {
 
       <div className="px-6 space-y-12">
         <AnimatePresence mode="wait">
-          {isSaved ? (
+          {flowStep === 'success' ? (
             <motion.div
               key="success"
               initial={{ opacity: 0, scale: 0.9 }}
@@ -286,8 +285,7 @@ export function AddMeal({ onSave, onCancel }: AddMealProps) {
               <div className="flex flex-col gap-3 w-full max-w-[240px]">
                 <button 
                   onClick={() => {
-                    setIsSaved(false);
-                    setShowReview(false);
+                    setFlowStep('meal_selection');
                     setStagedItems([]);
                   }}
                   className="h-14 rounded-full bg-white/[0.03] border border-white/[0.05] font-bold text-sm hover:bg-white/[0.06] transition-all"
@@ -302,14 +300,52 @@ export function AddMeal({ onSave, onCancel }: AddMealProps) {
                 </button>
               </div>
             </motion.div>
-          ) : !showReview ? (
+          ) : flowStep === 'meal_selection' ? (
+            <motion.div
+              key="meal_selection"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-8 pt-4"
+            >
+              <div className="text-center space-y-2">
+                <h2 className="text-3xl font-bold tracking-tighter">What are we eating?</h2>
+                <p className="text-secondary text-sm font-medium">Select the meal type to start</p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3">
+                {(['Breakfast', 'Brunch', 'Lunch', 'Dinner', 'Snack'] as MealType[]).map(type => (
+                  <button
+                    key={type}
+                    onClick={() => {
+                      setSelectedMealType(type);
+                      setFlowStep('input');
+                    }}
+                    className="group relative h-20 bg-white/[0.02] border border-white/[0.05] rounded-[2.5rem] px-8 flex items-center justify-between hover:bg-white/[0.05] hover:border-accent/20 transition-all overflow-hidden"
+                  >
+                    <span className="text-xl font-bold tracking-tight group-hover:text-accent transition-colors">{type}</span>
+                    <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-accent group-hover:text-black transition-all">
+                      <ArrowRight size={18} />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          ) : flowStep === 'input' ? (
             <motion.div
               key="input"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
               className="space-y-12"
             >
+              <div className="flex items-center justify-between bg-accent/5 border border-accent/20 px-6 py-4 rounded-[2rem]">
+                <div className="flex items-center gap-3">
+                  <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+                  <p className="text-xs font-bold uppercase tracking-widest text-accent">{selectedMealType}</p>
+                </div>
+                <button onClick={() => setFlowStep('meal_selection')} className="text-[10px] font-bold uppercase tracking-widest text-secondary hover:text-white">Change</button>
+              </div>
               {stagedItems.length > 0 && (
                 <div className="space-y-4">
                   <h3 className="text-secondary text-[10px] font-bold uppercase tracking-widest px-1">Current Meal Parts</h3>
@@ -400,7 +436,7 @@ export function AddMeal({ onSave, onCancel }: AddMealProps) {
                 <div className="flex justify-end pt-4 gap-4">
                    {stagedItems.length > 0 && (
                       <button
-                        onClick={() => setShowReview(true)}
+                        onClick={() => setFlowStep('review')}
                         className="h-14 px-8 rounded-full border border-white/[0.05] font-bold text-secondary text-sm hover:bg-white/[0.02]"
                       >
                         Finish & Review
@@ -412,7 +448,7 @@ export function AddMeal({ onSave, onCancel }: AddMealProps) {
                     className="h-14 w-14 rounded-full bg-accent/10 border border-accent/20 text-accent flex items-center justify-center disabled:opacity-5 transition-all hover:bg-accent/20 active:scale-95"
                   >
                     {isParsing ? <Loader2 size={24} className="animate-spin" /> : <ArrowRight size={24} />}
-                  </button>
+                   </button>
                 </div>
                 {error && <p className="text-accent/60 text-sm font-medium text-center">{error}</p>}
               </div>
@@ -422,8 +458,15 @@ export function AddMeal({ onSave, onCancel }: AddMealProps) {
               key="review"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
               className="space-y-8"
             >
+              <div className="flex items-center justify-between bg-accent/5 border border-accent/20 px-6 py-4 rounded-[2rem]">
+                <div className="flex items-center gap-3">
+                  <p className="text-xs font-bold uppercase tracking-widest text-accent">{selectedMealType}</p>
+                </div>
+                <button onClick={() => setFlowStep('meal_selection')} className="text-[10px] font-bold uppercase tracking-widest text-secondary">Change Meal</button>
+              </div>
               <div className="flex items-end justify-between px-1">
                 <div className="space-y-1">
                   <h2 className="text-secondary text-[10px] font-bold uppercase tracking-widest">Estimated total</h2>
@@ -529,24 +572,6 @@ export function AddMeal({ onSave, onCancel }: AddMealProps) {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-4">
-                      <h3 className="text-secondary text-[10px] font-bold uppercase tracking-widest px-1">Meal Type</h3>
-                      <div className="relative">
-                        <select
-                          value={selectedMealType}
-                          onChange={(e) => setSelectedMealType(e.target.value as MealType)}
-                          className="w-full h-11 bg-white/[0.02] border border-white/[0.05] rounded-2xl px-4 text-xs font-bold uppercase tracking-widest appearance-none text-text-primary focus:outline-none focus:border-accent/40"
-                        >
-                          {(['Breakfast', 'Brunch', 'Lunch', 'Dinner', 'Snack'] as MealType[]).map(type => (
-                            <option key={type} value={type} className="bg-[#050505]">{type}</option>
-                          ))}
-                        </select>
-                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-secondary">
-                          <ArrowRight size={14} className="rotate-90" />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
                       <h3 className="text-secondary text-[10px] font-bold uppercase tracking-widest px-1">Log Time</h3>
                       <div className="apple-card bg-white/[0.02] border-white/[0.05] p-3 flex items-center justify-center h-11 rounded-2xl">
                         <input 
@@ -555,6 +580,13 @@ export function AddMeal({ onSave, onCancel }: AddMealProps) {
                           onChange={(e) => setLogTime(e.target.value)}
                           className="bg-transparent text-sm font-bold tracking-tight text-text-primary outline-none text-center tabular-nums"
                         />
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <h3 className="text-secondary text-[10px] font-bold uppercase tracking-widest px-1">Select Mood</h3>
+                      <div className="apple-card bg-white/[0.02] border-white/[0.05] p-3 flex items-center justify-center h-11 rounded-2xl">
+                         <span className="text-xs font-bold text-accent">{selectedMood || "Optional"}</span>
                       </div>
                     </div>
                   </div>
@@ -581,12 +613,12 @@ export function AddMeal({ onSave, onCancel }: AddMealProps) {
                   <div className="grid grid-cols-2 gap-4 pt-8">
                     <button
                       onClick={() => {
-                        setShowReview(false);
+                        setFlowStep('input');
                         setRefinementStep(null);
                       }}
                       className="h-14 rounded-full border border-white/[0.05] font-bold hover:bg-white/[0.02] transition-all text-secondary text-sm"
                     >
-                      Add More
+                      Add Another Food
                     </button>
                     <button
                       onClick={() => {
@@ -600,12 +632,12 @@ export function AddMeal({ onSave, onCancel }: AddMealProps) {
                           date.getTime(),
                           selectedMealType
                         );
-                        setIsSaved(true);
+                        setFlowStep('success');
                       }}
                       className="h-14 rounded-full bg-accent text-black font-bold flex items-center justify-center gap-2 hover:bg-accent/90 active:scale-95 transition-all shadow-xl shadow-accent/5"
                     >
                       <Check size={20} />
-                      Log
+                      Log Meal
                     </button>
                   </div>
               </div>
