@@ -87,20 +87,17 @@ export function AddMeal({ onSave, onCancel }: AddMealProps) {
     }
     
     const newItems = result.items.map(item => {
-      // Calculate zeroed nutrients for initial state
-      const zeroNutrients = {
-        calories: { min: 0, max: 0, precise: 0 },
-        protein: { min: 0, max: 0, precise: 0 },
-        carbs: { min: 0, max: 0, precise: 0 },
-        fat: { min: 0, max: 0, precise: 0 }
-      };
+      const baseNutrients = item.nutrients;
+      
+      // If we have a clear serving size or item, default to quantity 1
+      const defaultQty = 1;
 
       return {
         ...item,
-        baseNutrients: item.nutrients, // Store AI's original estimate as base
-        nutrients: zeroNutrients,
-        quantity: 0, // Default to 0 unit
-        grams: 0 // Default to 0 grams
+        baseNutrients,
+        nutrients: baseNutrients, // Start with the AI's estimate
+        quantity: defaultQty,
+        grams: 0 
       };
     });
 
@@ -578,7 +575,7 @@ export function AddMeal({ onSave, onCancel }: AddMealProps) {
                              <p className="text-secondary text-[10px] font-bold uppercase tracking-widest">Adjust by Weight</p>
                              <div className="grid grid-cols-4 gap-2">
                                {[100, 150, 200, 300].map(w => (
-                                 <button key={w} onClick={() => refineItem(idx, w/150)} className="h-10 rounded-xl bg-white/[0.02] border border-white/[0.05] text-[10px] font-bold text-text-secondary hover:bg-accent/10 hover:text-accent transition-all">{w}g</button>
+                                 <button key={w} onClick={() => updateItemGrams(idx, w)} className="h-10 rounded-xl bg-white/[0.02] border border-white/[0.05] text-[10px] font-bold text-text-secondary hover:bg-accent/10 hover:text-accent transition-all">{w}g</button>
                                ))}
                              </div>
                           </div>

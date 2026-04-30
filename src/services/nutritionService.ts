@@ -154,11 +154,12 @@ const HEURISTICS: Record<string, { kcal: number; protein: number; unit: string; 
   "white fish": { kcal: 90, protein: 20, unit: "100g" },
   "cod": { kcal: 82, protein: 18, unit: "100g" },
   "tuna": { kcal: 132, protein: 28, unit: "100g" },
-  "egg": { kcal: 70, protein: 6, unit: "1 large" },
-  "boiled egg": { kcal: 70, protein: 6, unit: "1 large" },
-  "fried egg": { kcal: 90, protein: 6, unit: "1 large" },
-  "scrambled egg": { kcal: 100, protein: 7, unit: "1 large" },
-  "omelette": { kcal: 154, protein: 11, unit: "100g" },
+  "egg": { kcal: 72, protein: 6, unit: "1 large", baseWeight: 50 },
+  "poached egg": { kcal: 72, protein: 6, unit: "1 large", baseWeight: 50 },
+  "boiled egg": { kcal: 72, protein: 6, unit: "1 large", baseWeight: 50 },
+  "fried egg": { kcal: 90, protein: 6, unit: "1 large", baseWeight: 50 },
+  "scrambled egg": { kcal: 100, protein: 7, unit: "1 large", baseWeight: 50 },
+  "omelette": { kcal: 154, protein: 11, unit: "100g", baseWeight: 100 },
   "tofu": { kcal: 76, protein: 8, unit: "100g" },
   
   // Grains/Carbs
@@ -352,10 +353,10 @@ export async function parseMealDescription(description: string): Promise<GeminiR
       model: "gemini-3-flash-preview",
       contents: `You are a professional nutrition analyzer. Parse this meal: "${description}".
 RULES:
-1. PRECISION: Base calculations on quantities if mentioned. A medium banana is ~90-100kcal. 
-2. INGREDIENT DECOMPOSITION: Separate items into distinct objects.
-3. DISCRIMINATION: Do not use generic high-calorie values for low-calorie foods.
-4. CALORIE DENSITY: Provide estimated kcal_per_100g for every item.
+1. PORTION ESTIMATION: Estimate the size/weight of the portion described (e.g. "1 egg" = 50g, "1 banana" = 100g).
+2. PRECISION: Base "nutrients" on the total portion estimated. A large poached egg is ~72kcal.
+3. CALORIE DENSITY: Provide "kcal_per_100g" as the caloric density of the item. For an egg, this is around 143.
+4. INGREDIENT DECOMPOSITION: Separate items into distinct objects.
 5. Return structured JSON only.`,
       config: {
         responseMimeType: "application/json",
