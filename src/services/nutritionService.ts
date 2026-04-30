@@ -6,8 +6,18 @@
 import { FoodItem, NutrientValue, InputQuality } from '../types';
 import { GoogleGenAI, Type } from "@google/genai";
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+let aiInstance: GoogleGenAI | null = null;
+
+function getAI() {
+  if (!aiInstance) {
+    const key = process.env.GEMINI_API_KEY;
+    if (!key) {
+      throw new Error('GEMINI_API_KEY is missing. Please add it in the Settings menu (top right).');
+    }
+    aiInstance = new GoogleGenAI({ apiKey: key });
+  }
+  return aiInstance;
+}
 
 export interface GeminiResponse {
   meal_name: string;
@@ -328,8 +338,9 @@ function getHeuristicEstimate(description: string): GeminiResponse {
 
 export async function parseMealDescription(description: string): Promise<GeminiResponse> {
   try {
+    const ai = getAI();
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
+      model: "gemini-3-flash-preview",
       contents: `You are a professional nutrition analyzer. Parse this meal: "${description}".
 RULES:
 1. PRECISION: Base calculations on quantities if mentioned. A medium banana is ~90-100kcal. 
@@ -342,7 +353,8 @@ RULES:
       },
     });
 
-    const rawData = response.text ? JSON.parse(response.text) : {};
+    const text = response.text;
+    const rawData = text ? JSON.parse(text) : {};
     
     if (rawData && rawData.items) {
       rawData.items = rawData.items.map((item: any) => {
@@ -394,26 +406,26 @@ export async function parseMealImage(imageB64: string): Promise<GeminiResponse> 
     
     const base64Data = imageB64.includes(",") ? imageB64.split(",")[1] : imageB64;
 
+    const ai = getAI();
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
-      contents: {
-        parts: [
-          { text: PHOTO_PROMPT },
-          {
-            inlineData: {
-              data: base64Data,
-              mimeType: mimeType
-            }
+      model: "gemini-3-flash-preview",
+      contents: [
+        { text: PHOTO_PROMPT },
+        {
+          inlineData: {
+            data: base64Data,
+            mimeType: mimeType
           }
-        ]
-      },
+        }
+      ],
       config: {
         responseMimeType: "application/json",
         responseSchema: PHOTO_SCHEMA,
       },
     });
 
-    const rawData = response.text ? JSON.parse(response.text) : {};
+    const text = response.text;
+    const rawData = text ? JSON.parse(text) : {};
 
     if (rawData && rawData.items) {
       rawData.items = rawData.items.map((item: any) => {
