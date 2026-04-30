@@ -284,7 +284,10 @@ export async function parseMealImage(imageB64: string): Promise<GeminiResponse> 
       body: JSON.stringify({ imageB64, mimeType })
     });
 
-    if (!response.ok) throw new Error("Server error");
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Server error: ${response.status}`);
+    }
     const rawData = await response.json();
 
     if (rawData && rawData.items) {
@@ -317,9 +320,9 @@ export async function parseMealImage(imageB64: string): Promise<GeminiResponse> 
       clarifying_question: rawData.clarifying_question || null,
       clarifying_options: rawData.clarifying_options || []
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini Image Error:", error);
-    throw new Error("Unable to analyze this photo. Try using text or voice.");
+    throw error;
   }
 }
 

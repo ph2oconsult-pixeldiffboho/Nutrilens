@@ -3,6 +3,7 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import { GoogleGenAI, Type } from "@google/genai";
+import "dotenv/config";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -10,29 +11,35 @@ const __dirname = path.dirname(__filename);
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
-const PHOTO_PROMPT = `You are estimating nutrition from a meal photo.
-Return structured JSON only.
-Do not return markdown or explanatory text.
+const PHOTO_PROMPT = `Analyze this meal photo.
+Return ONLY structured JSON. No preamble. No markdown.
 
-Estimate:
-- likely food items
-- approximate portions
-- best calorie estimate
-- minimum plausible calories
-- maximum plausible calories
-- protein (grams)
-- carbohydrates (grams)
-- fat (grams)
-- uncertainty reason
-- one clarifying question if needed
+JSON Schema:
+{
+  "meal_name": "string",
+  "items": [
+    {
+      "name": "string",
+      "portion_description": "string",
+      "estimate_kcal": number,
+      "min_kcal": number,
+      "max_kcal": number,
+      "protein_g": number,
+      "carbs_g": number,
+      "fat_g": number,
+      "uncertainty_reason": "string"
+    }
+  ],
+  "input_quality": "photo_estimate",
+  "clarifying_question": "string",
+  "clarifying_options": ["string"]
+}
 
-Important rules:
-- A photo alone cannot confirm weight, oil, butter, sauces, hidden ingredients, or exact portion size.
-- Therefore, photo-only estimates should usually have a wide range.
-- Do not return false precision.
-- If the meal is complex, widen the range.
-- If the meal is visually simple, still retain uncertainty.
-- If multiple foods are visible, estimate each separately.`;
+Rules:
+- Identify every food item visible.
+- Be realistic. A bunch of bananas should be ~100kcal per medium banana.
+- If unsure, broaden the calorie range.
+- Provide a helpful clarifying question if it helps accuracy (e.g. "Was anything cooked in oil?").`;
 
 const TEXT_SCHEMA = {
   type: Type.OBJECT,
@@ -128,6 +135,18 @@ const PHOTO_SCHEMA = {
   required: ["meal_name", "items", "input_quality", "clarifying_question", "clarifying_options"],
 };
 
+function safeParseJSON(text: string) {
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/) || text.match(/```\s*([\s\S]*?)\s*```/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[1]);
+    }
+    throw e;
+  }
+}
+
 async function startServer() {
   const app = express();
   const PORT = 3000;
@@ -140,26 +159,20 @@ async function startServer() {
     if (!description) return res.status(400).json({ error: "Missing description" });
 
     try {
-      const prompt = `You are a professional nutrition analyzer. Parse this meal: "${description}".
-RULES:
-1. PRECISION: If specific quantities (g, oz, cups, pieces) are mentioned, base calculations strictly on those.
-2. NO GENERIC 600KCAL: If the food is low calorie (coffee, carrot, etc.), do NOT return high-calorie estimates. A medium banana is ~90-100kcal. Coffee is ~2kcal. 
-3. INGREDIENT DECOMPOSITION: If the description contains multiple items (e.g. "coffee and a croissant"), return them as separate items in the array.
-4. CALORIC DENSITY: Be accurate for fruits and simple items. 
-5. UNCERTAINTY: Use the uncertainty_reason to explain why you chose a specific range.
-
-Return structured JSON only.`;
-
       const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        model: "gemini-3-flash-preview",
+        contents: [{ role: "user", parts: [{ text: `You are a professional nutrition analyzer. Parse this meal: "${description}".
+RULES:
+1. PRECISION: Base calculations on quantities if mentioned. A medium banana is ~90-100kcal. 
+2. INGREDIENT DECOMPOSITION: Separate items.
+3. Return structured JSON only.` }] }],
         config: {
           responseMimeType: "application/json",
           responseSchema: TEXT_SCHEMA,
         },
       });
 
-      res.json(JSON.parse(response.text || "{}"));
+      res.json(safeParseJSON(response.text || "{}"));
     } catch (error: any) {
       console.error("Server Text Parse Error:", error);
       res.status(500).json({ error: error.message });
@@ -171,15 +184,17 @@ Return structured JSON only.`;
     if (!imageB64) return res.status(400).json({ error: "Missing image data" });
 
     try {
+      const base64Data = imageB64.includes(",") ? imageB64.split(",")[1] : imageB64;
+      
       const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
+        model: "gemini-3-flash-preview",
         contents: [{
           role: "user",
           parts: [
             { text: PHOTO_PROMPT },
             {
               inlineData: {
-                data: imageB64.includes(",") ? imageB64.split(",")[1] : imageB64,
+                data: base64Data,
                 mimeType: mimeType || "image/jpeg"
               }
             }
@@ -191,10 +206,13 @@ Return structured JSON only.`;
         },
       });
 
-      res.json(JSON.parse(response.text || "{}"));
+      const responseText = response.text;
+      if (!responseText) throw new Error("Empty response from AI");
+      
+      res.json(safeParseJSON(responseText));
     } catch (error: any) {
       console.error("Server Image Parse Error:", error);
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: error.message, details: error.stack });
     }
   });
 
