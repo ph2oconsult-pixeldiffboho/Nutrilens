@@ -35,6 +35,7 @@ Return structured JSON only.
 Rules:
 - Identify every food item visible.
 - Be realistic. A medium banana is ~90-100kcal.
+- Provide "kcal_per_100g" for each item (best estimate for density).
 - If unsure, broaden the calorie range.
 - Provide a helpful clarifying question if it helps accuracy.`;
 
@@ -55,9 +56,10 @@ const PHOTO_SCHEMA = {
           protein_g: { type: Type.NUMBER },
           carbs_g: { type: Type.NUMBER },
           fat_g: { type: Type.NUMBER },
+          kcal_per_100g: { type: Type.NUMBER },
           uncertainty_reason: { type: Type.STRING },
         },
-        required: ["name", "portion_description", "estimate_kcal", "min_kcal", "max_kcal", "protein_g", "carbs_g", "fat_g", "uncertainty_reason"],
+        required: ["name", "portion_description", "estimate_kcal", "min_kcal", "max_kcal", "protein_g", "carbs_g", "fat_g", "kcal_per_100g", "uncertainty_reason"],
       },
     },
     input_quality: { type: Type.STRING },
@@ -78,6 +80,7 @@ const TEXT_SCHEMA = {
         properties: {
           name: { type: Type.STRING },
           servingSize: { type: Type.STRING },
+          kcal_per_100g: { type: Type.NUMBER },
           nutrients: {
             type: Type.OBJECT,
             properties: {
@@ -122,7 +125,7 @@ const TEXT_SCHEMA = {
           },
           confidence: { type: Type.NUMBER },
         },
-        required: ["name", "servingSize", "nutrients", "confidence"],
+        required: ["name", "servingSize", "kcal_per_100g", "nutrients", "confidence"],
       },
     },
     input_quality: { type: Type.STRING },
@@ -263,7 +266,8 @@ function getHeuristicEstimate(description: string): GeminiResponse {
       
       const estKcal = data.kcal * useFactor;
       const estProtein = data.protein * useFactor;
-      
+      const density = data.unit.includes('100g') || data.unit.includes('100ml') ? data.kcal : (data.kcal / 1.5); // very rough density if per unit
+
       items.push({
         id: Math.random().toString(36).substr(2, 9),
         name: part.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
@@ -276,7 +280,8 @@ function getHeuristicEstimate(description: string): GeminiResponse {
         },
         confidence: 0.7,
         inputQuality: (parts.length === 1 && bestMatch === part) ? 'known_meal' : 'vague',
-        uncertaintyReason: "Estimated from common values"
+        uncertaintyReason: "Estimated from common values",
+        kcalPer100g: density
       });
     } else {
       // Small item and context heuristic
@@ -345,8 +350,9 @@ export async function parseMealDescription(description: string): Promise<GeminiR
 RULES:
 1. PRECISION: Base calculations on quantities if mentioned. A medium banana is ~90-100kcal. 
 2. INGREDIENT DECOMPOSITION: Separate items into distinct objects.
-3. DISCRIMINATION: Do not use generic high-calorie values for low-calorie foods (e.g. coffee, water, carrots).
-4. Return structured JSON only.`,
+3. DISCRIMINATION: Do not use generic high-calorie values for low-calorie foods.
+4. CALORIE DENSITY: Provide estimated kcal_per_100g for every item.
+5. Return structured JSON only.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: TEXT_SCHEMA,
@@ -378,7 +384,8 @@ RULES:
             fat: fat
           },
           confidence: item.confidence || 0.5,
-          inputQuality: rawData.input_quality || 'partial'
+          inputQuality: rawData.input_quality || 'partial',
+          kcalPer100g: item.kcal_per_100g
         };
       });
     }
@@ -445,7 +452,8 @@ export async function parseMealImage(imageB64: string): Promise<GeminiResponse> 
           },
           confidence: 0.6,
           inputQuality: "photo_estimate",
-          uncertaintyReason: item.uncertainty_reason
+          uncertaintyReason: item.uncertainty_reason,
+          kcalPer100g: item.kcal_per_100g
         };
       });
     }

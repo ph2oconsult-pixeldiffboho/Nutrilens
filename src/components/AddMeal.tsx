@@ -85,14 +85,20 @@ export function AddMeal({ onSave, onCancel }: AddMealProps) {
       return;
     }
     
-    const newItems = [...stagedItems, ...result.items];
-    setStagedItems(newItems);
+    const newItems = result.items.map(item => ({
+      ...item,
+      quantity: 1, // Default to 1 unit
+      grams: item.servingSize.toLowerCase().includes('g') ? parseInt(item.servingSize) : undefined
+    }));
+
+    const finalItems = [...stagedItems, ...newItems];
+    setStagedItems(finalItems);
     setShowReview(true);
     setDescription(''); 
     
     if (result.input_quality === 'vague' && result.clarifying_question) {
       setRefinementStep({
-        itemIndex: newItems.length - result.items.length,
+        itemIndex: finalItems.length - result.items.length,
         question: result.clarifying_question,
         options: result.clarifying_options
       });
@@ -100,7 +106,7 @@ export function AddMeal({ onSave, onCancel }: AddMealProps) {
 
     if (result.input_quality === 'photo_estimate' && result.clarifying_question) {
        setRefinementStep({
-        itemIndex: newItems.length - result.items.length,
+        itemIndex: finalItems.length - result.items.length,
         question: result.clarifying_question || "Is this a typical portion?",
         options: result.clarifying_options?.length ? result.clarifying_options : ["Small", "Medium", "Large"]
       });
@@ -155,6 +161,61 @@ export function AddMeal({ onSave, onCancel }: AddMealProps) {
     const newItems = stagedItems.filter((_, i) => i !== idx);
     setStagedItems(newItems);
     if (newItems.length === 0) setShowReview(false);
+  };
+
+  const updateItemGrams = (index: number, grams: number) => {
+    const items = [...stagedItems];
+    const item = items[index];
+    const density = item.kcalPer100g || (item.nutrients.calories.precise / 100); // fallback density
+    
+    const multiplier = grams / (item.grams || 100);
+    
+    items[index] = {
+      ...item,
+      grams,
+      quantity: undefined,
+      nutrients: {
+        ...item.nutrients,
+        calories: {
+          precise: Math.round(density * (grams / 100)),
+          min: Math.round(density * (grams / 100) * 0.9),
+          max: Math.round(density * (grams / 100) * 1.1),
+        },
+        protein: {
+          precise: item.nutrients.protein.precise * multiplier,
+          min: item.nutrients.protein.min * multiplier,
+          max: item.nutrients.protein.max * multiplier
+        }
+      }
+    };
+    setStagedItems(items);
+  };
+
+  const updateItemQuantity = (index: number, quantity: number) => {
+    const items = [...stagedItems];
+    const item = items[index];
+    const baseQuantity = item.quantity || 1;
+    const factor = quantity / baseQuantity;
+
+    items[index] = {
+      ...item,
+      quantity,
+      grams: undefined,
+      nutrients: {
+        ...item.nutrients,
+        calories: {
+          precise: Math.round(item.nutrients.calories.precise * factor),
+          min: Math.round(item.nutrients.calories.min * factor),
+          max: Math.round(item.nutrients.calories.max * factor),
+        },
+        protein: {
+          precise: item.nutrients.protein.precise * factor,
+          min: item.nutrients.protein.min * factor,
+          max: item.nutrients.protein.max * factor
+        }
+      }
+    };
+    setStagedItems(items);
   };
 
   const refineItem = (index: number, multiplier: number) => {
@@ -347,10 +408,8 @@ export function AddMeal({ onSave, onCancel }: AddMealProps) {
                             {Math.round(item.nutrients.calories.precise)}
                             <span className="text-xs font-medium text-secondary ml-1">kcal</span>
                           </p>
-                          {item.nutrients.calories.max - item.nutrients.calories.min > 50 && (
-                            <p className="text-secondary text-[10px] tabular-nums font-medium">
-                              ({Math.round(item.nutrients.calories.min)}–{Math.round(item.nutrients.calories.max)})
-                            </p>
+                          {item.kcalPer100g && (
+                             <p className="text-secondary text-[8px] font-bold uppercase tracking-wider">{item.kcalPer100g} kcal/100g</p>
                           )}
                         </div>
                       </div>
@@ -360,6 +419,32 @@ export function AddMeal({ onSave, onCancel }: AddMealProps) {
                           {Math.round(item.nutrients.protein.precise)}
                           <span className="text-xs font-medium text-secondary ml-1">g</span>
                         </p>
+                      </div>
+                    </div>
+
+                    <div className="pt-4 border-t border-white/[0.01]">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-secondary mb-2">Adjust Portion</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-white/[0.02] rounded-2xl p-3 border border-white/[0.05] flex items-center justify-between">
+                          <span className="text-[9px] text-white/30 uppercase font-bold tracking-widest">Grams</span>
+                          <input 
+                            type="number" 
+                            value={item.grams || ''} 
+                            placeholder="0"
+                            onChange={(e) => updateItemGrams(idx, Number(e.target.value))}
+                            className="bg-transparent font-bold text-right outline-none text-accent w-20"
+                          />
+                        </div>
+                        <div className="bg-white/[0.02] rounded-2xl p-3 border border-white/[0.05] flex items-center justify-between">
+                          <span className="text-[9px] text-white/30 uppercase font-bold tracking-widest">Count</span>
+                          <input 
+                            type="number" 
+                            value={item.quantity || ''} 
+                            placeholder="0"
+                            onChange={(e) => updateItemQuantity(idx, Number(e.target.value))}
+                            className="bg-transparent font-bold text-right outline-none text-accent w-20"
+                          />
+                        </div>
                       </div>
                     </div>
 

@@ -26,6 +26,9 @@ export interface FoodItem {
   confidence: number;
   inputQuality?: InputQuality;
   uncertaintyReason?: string;
+  kcalPer100g?: number; // Estimated density (for logic)
+  grams?: number; // User edited weight
+  quantity?: number; // User edited count
 }
 
 export interface Meal {
