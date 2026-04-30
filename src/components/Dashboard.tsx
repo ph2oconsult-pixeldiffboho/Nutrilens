@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronRight, Info } from 'lucide-react';
 import { NutritionTargets, Meal } from '../types';
+import { APP_VERSION } from '../constants';
 
 interface DashboardProps {
   progress: { calories: number; protein: number; upperBoundCals: number };
@@ -193,6 +194,12 @@ export function Dashboard({ progress, targets, todayMeals, insightText, nextGuid
           )}
         </div>
       </section>
+
+      <div className="pt-12 pb-8 flex justify-center opacity-10 hover:opacity-100 transition-opacity">
+        <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-secondary">
+          v{APP_VERSION}
+        </p>
+      </div>
     </div>
   );
 }

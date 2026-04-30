@@ -5,6 +5,8 @@
 
 import { NutritionTargets, Meal, WeightEntry, MoodEntry } from './types';
 
+export const APP_VERSION = '1.0.4';
+
 export const DEFAULT_TARGETS: NutritionTargets = {
   calories: 2200,
   protein: 150,

@@ -4,6 +4,10 @@
  */
 
 import { FoodItem, NutrientValue, InputQuality } from '../types';
+import { GoogleGenAI, Type } from "@google/genai";
+
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
 export interface GeminiResponse {
   meal_name: string;
@@ -13,6 +17,110 @@ export interface GeminiResponse {
   clarifying_options: string[];
   is_fallback?: boolean;
 }
+
+const PHOTO_PROMPT = `Analyze this meal photo.
+Estimate nutrition for each item.
+Return structured JSON only.
+
+Rules:
+- Identify every food item visible.
+- Be realistic. A medium banana is ~90-100kcal.
+- If unsure, broaden the calorie range.
+- Provide a helpful clarifying question if it helps accuracy.`;
+
+const PHOTO_SCHEMA = {
+  type: Type.OBJECT,
+  properties: {
+    meal_name: { type: Type.STRING },
+    items: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          name: { type: Type.STRING },
+          portion_description: { type: Type.STRING },
+          estimate_kcal: { type: Type.NUMBER },
+          min_kcal: { type: Type.NUMBER },
+          max_kcal: { type: Type.NUMBER },
+          protein_g: { type: Type.NUMBER },
+          carbs_g: { type: Type.NUMBER },
+          fat_g: { type: Type.NUMBER },
+          uncertainty_reason: { type: Type.STRING },
+        },
+        required: ["name", "portion_description", "estimate_kcal", "min_kcal", "max_kcal", "protein_g", "carbs_g", "fat_g", "uncertainty_reason"],
+      },
+    },
+    input_quality: { type: Type.STRING },
+    clarifying_question: { type: Type.STRING },
+    clarifying_options: { type: Type.ARRAY, items: { type: Type.STRING } },
+  },
+  required: ["meal_name", "items", "input_quality", "clarifying_question", "clarifying_options"],
+};
+
+const TEXT_SCHEMA = {
+  type: Type.OBJECT,
+  properties: {
+    meal_name: { type: Type.STRING },
+    items: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          name: { type: Type.STRING },
+          servingSize: { type: Type.STRING },
+          nutrients: {
+            type: Type.OBJECT,
+            properties: {
+              calories: {
+                type: Type.OBJECT,
+                properties: {
+                  min: { type: Type.NUMBER },
+                  max: { type: Type.NUMBER },
+                  precise: { type: Type.NUMBER },
+                },
+                required: ["min", "max", "precise"],
+              },
+              protein: {
+                type: Type.OBJECT,
+                properties: {
+                  min: { type: Type.NUMBER },
+                  max: { type: Type.NUMBER },
+                  precise: { type: Type.NUMBER },
+                },
+                required: ["min", "max", "precise"],
+              },
+              carbs: {
+                type: Type.OBJECT,
+                properties: {
+                  min: { type: Type.NUMBER },
+                  max: { type: Type.NUMBER },
+                  precise: { type: Type.NUMBER },
+                },
+                required: ["min", "max", "precise"],
+              },
+              fat: {
+                type: Type.OBJECT,
+                properties: {
+                  min: { type: Type.NUMBER },
+                  max: { type: Type.NUMBER },
+                  precise: { type: Type.NUMBER },
+                },
+                required: ["min", "max", "precise"],
+              },
+            },
+            required: ["calories", "protein", "carbs", "fat"],
+          },
+          confidence: { type: Type.NUMBER },
+        },
+        required: ["name", "servingSize", "nutrients", "confidence"],
+      },
+    },
+    input_quality: { type: Type.STRING },
+    clarifying_question: { type: Type.STRING },
+    clarifying_options: { type: Type.ARRAY, items: { type: Type.STRING } },
+  },
+  required: ["meal_name", "items", "input_quality", "clarifying_options"],
+};
 
 
 const HEURISTICS: Record<string, { kcal: number; protein: number; unit: string; baseWeight?: number }> = {
@@ -220,15 +328,21 @@ function getHeuristicEstimate(description: string): GeminiResponse {
 
 export async function parseMealDescription(description: string): Promise<GeminiResponse> {
   try {
-    const response = await fetch("/api/meal/parse-text", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ description })
+    const response = await ai.models.generateContent({
+      model: "gemini-1.5-flash",
+      contents: `You are a professional nutrition analyzer. Parse this meal: "${description}".
+RULES:
+1. PRECISION: Base calculations on quantities if mentioned. A medium banana is ~90-100kcal. 
+2. INGREDIENT DECOMPOSITION: Separate items into distinct objects.
+3. DISCRIMINATION: Do not use generic high-calorie values for low-calorie foods (e.g. coffee, water, carrots).
+4. Return structured JSON only.`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: TEXT_SCHEMA,
+      },
     });
 
-    if (!response.ok) throw new Error("Server error");
-    
-    const rawData = await response.json();
+    const rawData = response.text ? JSON.parse(response.text) : {};
     
     if (rawData && rawData.items) {
       rawData.items = rawData.items.map((item: any) => {
@@ -278,17 +392,28 @@ export async function parseMealImage(imageB64: string): Promise<GeminiResponse> 
       if (match) mimeType = match[1];
     }
     
-    const response = await fetch("/api/meal/parse-image", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ imageB64, mimeType })
+    const base64Data = imageB64.includes(",") ? imageB64.split(",")[1] : imageB64;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-1.5-flash",
+      contents: {
+        parts: [
+          { text: PHOTO_PROMPT },
+          {
+            inlineData: {
+              data: base64Data,
+              mimeType: mimeType
+            }
+          }
+        ]
+      },
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: PHOTO_SCHEMA,
+      },
     });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `Server error: ${response.status}`);
-    }
-    const rawData = await response.json();
+    const rawData = response.text ? JSON.parse(response.text) : {};
 
     if (rawData && rawData.items) {
       rawData.items = rawData.items.map((item: any) => {

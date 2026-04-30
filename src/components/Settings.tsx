@@ -6,7 +6,7 @@
 import { useState, FormEvent } from 'react';
 import { NutritionTargets } from '../types';
 import { Check, RotateCcw } from 'lucide-react';
-import { DEFAULT_TARGETS } from '../constants';
+import { APP_VERSION, DEFAULT_TARGETS } from '../constants';
 
 interface SettingsProps {
   targets: NutritionTargets;
@@ -178,6 +178,15 @@ export function Settings({ targets, onUpdate, onResetDefaults, onClearWeights, o
           </div>
         </div>
       </form>
+
+      <footer className="mt-20 flex flex-col items-center gap-2 opacity-30">
+        <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-secondary">
+          v{APP_VERSION}
+        </p>
+        <p className="text-[8px] font-medium tracking-tight text-secondary italic">
+          AI-Powered Nutrition Analysis
+        </p>
+      </footer>
     </div>
   );
 }
