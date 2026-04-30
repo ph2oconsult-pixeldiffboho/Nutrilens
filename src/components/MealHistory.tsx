@@ -58,6 +58,14 @@ export function MealHistory({ meals, onDelete, onClearAll }: MealHistoryProps) {
                         <p className="text-[10px] font-bold uppercase tracking-widest text-secondary">
                           {new Date(meal.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </p>
+                        {meal.mealType && (
+                          <>
+                            <span className="w-1 h-1 rounded-full bg-white/10" />
+                            <p className="text-[10px] uppercase font-bold tracking-widest text-accent/80">
+                              {meal.mealType}
+                            </p>
+                          </>
+                        )}
                       </div>
                     </div>
                     <button 

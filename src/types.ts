@@ -23,6 +23,7 @@ export interface FoodItem {
   name: string;
   servingSize: string;
   nutrients: Nutrients;
+  baseNutrients?: Nutrients; // Values for 1 unit or original estimate
   confidence: number;
   inputQuality?: InputQuality;
   uncertaintyReason?: string;
@@ -31,10 +32,13 @@ export interface FoodItem {
   quantity?: number; // User edited count
 }
 
+export type MealType = 'Breakfast' | 'Brunch' | 'Lunch' | 'Dinner' | 'Snack';
+
 export interface Meal {
   id: string;
   timestamp: number;
   description: string;
+  mealType?: MealType;
   items: FoodItem[];
   totalCalories: NutrientValue;
   totalProtein: NutrientValue;

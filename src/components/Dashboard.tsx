@@ -175,9 +175,19 @@ export function Dashboard({ progress, targets, todayMeals, insightText, nextGuid
                     </div>
                   )}
                 </div>
-                <p className="text-[10px] uppercase font-bold tracking-widest text-secondary">
-                  {new Date(meal.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="text-[10px] uppercase font-bold tracking-widest text-secondary">
+                    {new Date(meal.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                  {meal.mealType && (
+                    <>
+                      <span className="w-1 h-1 rounded-full bg-white/10" />
+                      <p className="text-[10px] uppercase font-bold tracking-widest text-accent/80">
+                        {meal.mealType}
+                      </p>
+                    </>
+                  )}
+                </div>
               </div>
               <div className="text-right">
                 <p className="font-bold text-xl tabular-nums">

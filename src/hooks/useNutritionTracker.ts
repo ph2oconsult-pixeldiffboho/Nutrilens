@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useMemo } from 'react';
-import { Meal, NutritionTargets, FoodItem, NutrientValue, WeightEntry, MoodEntry, MoodType } from '../types';
+import { Meal, NutritionTargets, FoodItem, NutrientValue, WeightEntry, MoodEntry, MoodType, MealType } from '../types';
 import { DEFAULT_TARGETS, MOCK_MEALS, MOCK_WEIGHT_ENTRIES, MOCK_MOODS } from '../constants';
 import { getDaySummary, getGuidance } from '../services/nutritionService';
 
@@ -86,7 +86,7 @@ export function useNutritionTracker() {
     updateDashboard();
   }, [todayMeals, targets]);
 
-  const addMeal = async (description: string, items: FoodItem[], customTimestamp?: number) => {
+  const addMeal = async (description: string, items: FoodItem[], customTimestamp?: number, mealType?: MealType) => {
     // Duplicate detection: same description in the last 5 minutes
     const now = Date.now();
     const timestamp = customTimestamp || now;
@@ -122,6 +122,7 @@ export function useNutritionTracker() {
       id: Math.random().toString(36).substring(2, 11),
       timestamp,
       description,
+      mealType,
       items,
       totalCalories: calories,
       totalProtein: protein,

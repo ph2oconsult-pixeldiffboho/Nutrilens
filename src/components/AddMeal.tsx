@@ -7,11 +7,11 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Mic, Send, Loader2, X, Check, Trash2, ArrowRight, Camera, Image as ImageIcon } from 'lucide-react';
 import { parseMealDescription, parseMealImage, GeminiResponse } from '../services/nutritionService';
-import { FoodItem, MoodType, InputQuality } from '../types';
+import { FoodItem, MoodType, InputQuality, MealType } from '../types';
 import { compressImage } from '../lib/imageUtils';
 
 interface AddMealProps {
-  onSave: (description: string, items: FoodItem[], mood?: MoodType, timestamp?: number) => void;
+  onSave: (description: string, items: FoodItem[], mood?: MoodType, timestamp?: number, mealType?: MealType) => void;
   onCancel: () => void;
 }
 
@@ -23,6 +23,8 @@ export function AddMeal({ onSave, onCancel }: AddMealProps) {
   const [liveTranscription, setLiveTranscription] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [selectedMood, setSelectedMood] = useState<MoodType | null>(null);
+  const [selectedMealType, setSelectedMealType] = useState<MealType>('Lunch');
+  const [isSaved, setIsSaved] = useState(false);
   const [refinementStep, setRefinementStep] = useState<{ itemIndex: number, question: string, options: string[] } | null>(null);
   const [showReview, setShowReview] = useState(false);
   const [logTime, setLogTime] = useState(() => {
@@ -85,11 +87,23 @@ export function AddMeal({ onSave, onCancel }: AddMealProps) {
       return;
     }
     
-    const newItems = result.items.map(item => ({
-      ...item,
-      quantity: 1, // Default to 1 unit
-      grams: item.servingSize.toLowerCase().includes('g') ? parseInt(item.servingSize) : undefined
-    }));
+    const newItems = result.items.map(item => {
+      // Calculate zeroed nutrients for initial state
+      const zeroNutrients = {
+        calories: { min: 0, max: 0, precise: 0 },
+        protein: { min: 0, max: 0, precise: 0 },
+        carbs: { min: 0, max: 0, precise: 0 },
+        fat: { min: 0, max: 0, precise: 0 }
+      };
+
+      return {
+        ...item,
+        baseNutrients: item.nutrients, // Store AI's original estimate as base
+        nutrients: zeroNutrients,
+        quantity: 0, // Default to 0 unit
+        grams: 0 // Default to 0 grams
+      };
+    });
 
     const finalItems = [...stagedItems, ...newItems];
     setStagedItems(finalItems);
@@ -166,25 +180,28 @@ export function AddMeal({ onSave, onCancel }: AddMealProps) {
   const updateItemGrams = (index: number, grams: number) => {
     const items = [...stagedItems];
     const item = items[index];
-    const density = item.kcalPer100g || (item.nutrients.calories.precise / 100); // fallback density
+    const density = item.kcalPer100g || (item.baseNutrients?.calories.precise ? item.baseNutrients.calories.precise / 100 : 0);
     
-    const multiplier = grams / (item.grams || 100);
-    
+    // We assume density is per 100g
+    const multiplier = grams / 100;
+    const baseP = item.baseNutrients?.protein.precise || (item.nutrients.protein.precise / (item.grams || 1));
+
     items[index] = {
       ...item,
       grams,
-      quantity: undefined,
+      quantity: 0,
       nutrients: {
         ...item.nutrients,
         calories: {
-          precise: Math.round(density * (grams / 100)),
-          min: Math.round(density * (grams / 100) * 0.9),
-          max: Math.round(density * (grams / 100) * 1.1),
+          precise: Math.round(density * grams),
+          min: Math.round(density * grams * 0.9),
+          max: Math.round(density * grams * 1.1),
         },
         protein: {
-          precise: item.nutrients.protein.precise * multiplier,
-          min: item.nutrients.protein.min * multiplier,
-          max: item.nutrients.protein.max * multiplier
+          // use a fixed ratio from base
+          precise: (item.baseNutrients?.protein.precise || 0) * (grams / 100),
+          min: (item.baseNutrients?.protein.min || 0) * (grams / 100),
+          max: (item.baseNutrients?.protein.max || 0) * (grams / 100)
         }
       }
     };
@@ -194,24 +211,23 @@ export function AddMeal({ onSave, onCancel }: AddMealProps) {
   const updateItemQuantity = (index: number, quantity: number) => {
     const items = [...stagedItems];
     const item = items[index];
-    const baseQuantity = item.quantity || 1;
-    const factor = quantity / baseQuantity;
+    const factor = quantity; // since base is 1 unit or original estimate
 
     items[index] = {
       ...item,
       quantity,
-      grams: undefined,
+      grams: 0,
       nutrients: {
         ...item.nutrients,
         calories: {
-          precise: Math.round(item.nutrients.calories.precise * factor),
-          min: Math.round(item.nutrients.calories.min * factor),
-          max: Math.round(item.nutrients.calories.max * factor),
+          precise: Math.round((item.baseNutrients?.calories.precise || 0) * factor),
+          min: Math.round((item.baseNutrients?.calories.min || 0) * factor),
+          max: Math.round((item.baseNutrients?.calories.max || 0) * factor),
         },
         protein: {
-          precise: item.nutrients.protein.precise * factor,
-          min: item.nutrients.protein.min * factor,
-          max: item.nutrients.protein.max * factor
+          precise: (item.baseNutrients?.protein.precise || 0) * factor,
+          min: (item.baseNutrients?.protein.min || 0) * factor,
+          max: (item.baseNutrients?.protein.max || 0) * factor
         }
       }
     };
@@ -253,7 +269,40 @@ export function AddMeal({ onSave, onCancel }: AddMealProps) {
 
       <div className="px-6 space-y-12">
         <AnimatePresence mode="wait">
-          {!showReview ? (
+          {isSaved ? (
+            <motion.div
+              key="success"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="flex flex-col items-center justify-center pt-20 space-y-8"
+            >
+              <div className="w-24 h-24 rounded-full bg-accent flex items-center justify-center">
+                <Check size={48} className="text-black" />
+              </div>
+              <div className="text-center space-y-2">
+                <h2 className="text-3xl font-bold tracking-tighter">Meal Logged</h2>
+                <p className="text-secondary text-sm font-medium">Your nutrition summary has been updated.</p>
+              </div>
+              <div className="flex flex-col gap-3 w-full max-w-[240px]">
+                <button 
+                  onClick={() => {
+                    setIsSaved(false);
+                    setShowReview(false);
+                    setStagedItems([]);
+                  }}
+                  className="h-14 rounded-full bg-white/[0.03] border border-white/[0.05] font-bold text-sm hover:bg-white/[0.06] transition-all"
+                >
+                  Log Another
+                </button>
+                <button 
+                  onClick={onCancel}
+                  className="h-14 rounded-full bg-accent text-black font-bold text-sm hover:bg-accent/90 transition-all"
+                >
+                  Back to Dashboard
+                </button>
+              </div>
+            </motion.div>
+          ) : !showReview ? (
             <motion.div
               key="input"
               initial={{ opacity: 0 }}
@@ -480,34 +529,52 @@ export function AddMeal({ onSave, onCancel }: AddMealProps) {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-4">
-                      <h3 className="text-secondary text-[10px] font-bold uppercase tracking-widest px-1">How do you feel?</h3>
-                      <div className="grid grid-cols-2 gap-2">
-                        {(['Energised', 'Good', 'Tired', 'Hungry', 'Bloated', 'Stressed'] as MoodType[]).slice(0, 4).map(mood => (
-                          <button
-                            key={mood}
-                            onClick={() => setSelectedMood(selectedMood === mood ? null : mood)}
-                            className={`h-11 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all ${
-                              selectedMood === mood 
-                                ? 'bg-accent/10 text-accent border border-accent/20 shadow-[0_0_20px_rgba(212,163,115,0.1)]' 
-                                : 'bg-white/[0.02] text-text-secondary border border-white/[0.02] hover:bg-white/[0.04]'
-                            }`}
-                          >
-                            {mood}
-                          </button>
-                        ))}
+                      <h3 className="text-secondary text-[10px] font-bold uppercase tracking-widest px-1">Meal Type</h3>
+                      <div className="relative">
+                        <select
+                          value={selectedMealType}
+                          onChange={(e) => setSelectedMealType(e.target.value as MealType)}
+                          className="w-full h-11 bg-white/[0.02] border border-white/[0.05] rounded-2xl px-4 text-xs font-bold uppercase tracking-widest appearance-none text-text-primary focus:outline-none focus:border-accent/40"
+                        >
+                          {(['Breakfast', 'Brunch', 'Lunch', 'Dinner', 'Snack'] as MealType[]).map(type => (
+                            <option key={type} value={type} className="bg-[#050505]">{type}</option>
+                          ))}
+                        </select>
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-secondary">
+                          <ArrowRight size={14} className="rotate-90" />
+                        </div>
                       </div>
                     </div>
 
                     <div className="space-y-4">
                       <h3 className="text-secondary text-[10px] font-bold uppercase tracking-widest px-1">Log Time</h3>
-                      <div className="apple-card bg-white/[0.02] border-white/[0.05] p-3 flex items-center justify-center h-24">
+                      <div className="apple-card bg-white/[0.02] border-white/[0.05] p-3 flex items-center justify-center h-11 rounded-2xl">
                         <input 
                           type="time" 
                           value={logTime}
                           onChange={(e) => setLogTime(e.target.value)}
-                          className="bg-transparent text-3xl font-bold tracking-tight text-text-primary outline-none text-center tabular-nums"
+                          className="bg-transparent text-sm font-bold tracking-tight text-text-primary outline-none text-center tabular-nums"
                         />
                       </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h3 className="text-secondary text-[10px] font-bold uppercase tracking-widest px-1">How do you feel?</h3>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(['Energised', 'Good', 'Tired', 'Hungry', 'Bloated', 'Stressed'] as MoodType[]).map(mood => (
+                        <button
+                          key={mood}
+                          onClick={() => setSelectedMood(selectedMood === mood ? null : mood)}
+                          className={`h-11 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all ${
+                            selectedMood === mood 
+                              ? 'bg-accent/10 text-accent border border-accent/20 shadow-[0_0_20px_rgba(212,163,115,0.1)]' 
+                              : 'bg-white/[0.02] text-text-secondary border border-white/[0.02] hover:bg-white/[0.04]'
+                          }`}
+                        >
+                          {mood}
+                        </button>
+                      ))}
                     </div>
                   </div>
 
@@ -530,8 +597,10 @@ export function AddMeal({ onSave, onCancel }: AddMealProps) {
                           `Meal: ${stagedItems.map(i => i.name).join(', ')}`, 
                           stagedItems, 
                           selectedMood || undefined,
-                          date.getTime()
+                          date.getTime(),
+                          selectedMealType
                         );
+                        setIsSaved(true);
                       }}
                       className="h-14 rounded-full bg-accent text-black font-bold flex items-center justify-center gap-2 hover:bg-accent/90 active:scale-95 transition-all shadow-xl shadow-accent/5"
                     >
