@@ -4,10 +4,6 @@
  */
 
 import { FoodItem, NutrientValue, InputQuality } from '../types';
-import { GoogleGenAI, Type } from "@google/genai";
-
-const GEMINI_API_KEY = (typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : '') || '';
-const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
 export interface GeminiResponse {
   meal_name: string;
@@ -17,127 +13,6 @@ export interface GeminiResponse {
   clarifying_options: string[];
   is_fallback?: boolean;
 }
-
-const PHOTO_PROMPT = `You are estimating nutrition from a meal photo.
-Return structured JSON only.
-Do not return markdown or explanatory text.
-
-Estimate:
-- likely food items
-- approximate portions
-- best calorie estimate
-- minimum plausible calories
-- maximum plausible calories
-- protein (grams)
-- carbohydrates (grams)
-- fat (grams)
-- uncertainty reason
-- one clarifying question if needed
-
-Important rules:
-- A photo alone cannot confirm weight, oil, butter, sauces, hidden ingredients, or exact portion size.
-- Therefore, photo-only estimates should usually have a wide range.
-- Do not return false precision.
-- If the meal is complex, widen the range.
-- If the meal is visually simple, still retain uncertainty.
-- If multiple foods are visible, estimate each separately.
-
-Return JSON in the specified schema.`;
-
-const PHOTO_RESPONSE_SCHEMA = {
-  type: Type.OBJECT,
-  properties: {
-    meal_name: { type: Type.STRING },
-    items: {
-      type: Type.ARRAY,
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          name: { type: Type.STRING },
-          portion_description: { type: Type.STRING },
-          estimate_kcal: { type: Type.NUMBER },
-          min_kcal: { type: Type.NUMBER },
-          max_kcal: { type: Type.NUMBER },
-          protein_g: { type: Type.NUMBER },
-          carbs_g: { type: Type.NUMBER },
-          fat_g: { type: Type.NUMBER },
-          uncertainty_reason: { type: Type.STRING },
-        },
-        required: ["name", "portion_description", "estimate_kcal", "min_kcal", "max_kcal", "protein_g", "carbs_g", "fat_g", "uncertainty_reason"],
-      },
-    },
-    input_quality: { type: Type.STRING },
-    clarifying_question: { type: Type.STRING, description: "One question to narrow down uncertainty, or empty string if none." },
-    clarifying_options: { type: Type.ARRAY, items: { type: Type.STRING } },
-  },
-  required: ["meal_name", "items", "input_quality", "clarifying_question", "clarifying_options"],
-};
-
-
-const TEXT_SCHEMA = {
-  type: Type.OBJECT,
-  properties: {
-    meal_name: { type: Type.STRING },
-    items: {
-      type: Type.ARRAY,
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          name: { type: Type.STRING },
-          servingSize: { type: Type.STRING },
-          nutrients: {
-            type: Type.OBJECT,
-            properties: {
-              calories: {
-                type: Type.OBJECT,
-                properties: {
-                  min: { type: Type.NUMBER },
-                  max: { type: Type.NUMBER },
-                  precise: { type: Type.NUMBER },
-                },
-                required: ["min", "max", "precise"],
-              },
-              protein: {
-                type: Type.OBJECT,
-                properties: {
-                  min: { type: Type.NUMBER },
-                  max: { type: Type.NUMBER },
-                  precise: { type: Type.NUMBER },
-                },
-                required: ["min", "max", "precise"],
-              },
-              carbs: {
-                type: Type.OBJECT,
-                properties: {
-                  min: { type: Type.NUMBER },
-                  max: { type: Type.NUMBER },
-                  precise: { type: Type.NUMBER },
-                },
-                required: ["min", "max", "precise"],
-              },
-              fat: {
-                type: Type.OBJECT,
-                properties: {
-                  min: { type: Type.NUMBER },
-                  max: { type: Type.NUMBER },
-                  precise: { type: Type.NUMBER },
-                },
-                required: ["min", "max", "precise"],
-              },
-            },
-            required: ["calories", "protein", "carbs", "fat"],
-          },
-          confidence: { type: Type.NUMBER },
-        },
-        required: ["name", "servingSize", "nutrients", "confidence"],
-      },
-    },
-    input_quality: { type: Type.STRING },
-    clarifying_question: { type: Type.STRING },
-    clarifying_options: { type: Type.ARRAY, items: { type: Type.STRING } },
-  },
-  required: ["meal_name", "items", "input_quality", "clarifying_options"],
-};
 
 
 const HEURISTICS: Record<string, { kcal: number; protein: number; unit: string; baseWeight?: number }> = {
@@ -345,27 +220,15 @@ function getHeuristicEstimate(description: string): GeminiResponse {
 
 export async function parseMealDescription(description: string): Promise<GeminiResponse> {
   try {
-    const prompt = `You are a professional nutrition analyzer. Parse this meal: "${description}".
-RULES:
-1. PRECISION: If specific quantities (g, oz, cups, pieces) are mentioned, base calculations strictly on those.
-2. NO GENERIC 600KCAL: If the food is low calorie (coffee, carrot, etc.), do NOT return high-calorie estimates.
-3. INGREDIENT DECOMPOSITION: If the description contains multiple items (e.g. "coffee and a croissant"), return them as separate items in the array.
-4. CALORIC DENSITY: A cup of black coffee is ~2kcal. A carrot is ~30-40kcal. 
-5. UNCERTAINTY: Use the uncertainty_reason to explain why you chose a specific range.
-
-Return structured JSON only.`;
-
-    const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: TEXT_SCHEMA,
-      },
+    const response = await fetch("/api/meal/parse-text", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ description })
     });
 
-    const text = response.text || "{}";
-    const rawData = JSON.parse(text);
+    if (!response.ok) throw new Error("Server error");
+    
+    const rawData = await response.json();
     
     if (rawData && rawData.items) {
       rawData.items = rawData.items.map((item: any) => {
@@ -375,15 +238,15 @@ Return structured JSON only.`;
         const crb = nutrients.carbs || { precise: 0, min: 0, max: 0 };
         const fat = nutrients.fat || { precise: 0, min: 0, max: 0 };
 
-        cal.precise = Math.max(0, cal.precise || 0);
-        cal.min = Math.max(0, cal.min || 0);
-        cal.max = Math.max(cal.precise, cal.max || 0);
-
         return {
           ...item,
           id: item.id || Math.random().toString(36).substr(2, 9),
           nutrients: {
-            calories: cal,
+            calories: {
+              precise: Math.max(0, cal.precise || 0),
+              min: Math.max(0, cal.min || 0),
+              max: Math.max(cal.precise || 0, cal.max || 0)
+            },
             protein: pro,
             carbs: crb,
             fat: fat
@@ -409,38 +272,20 @@ Return structured JSON only.`;
 
 export async function parseMealImage(imageB64: string): Promise<GeminiResponse> {
   try {
-    // Detect mime type
     let mimeType = "image/jpeg";
     if (imageB64.startsWith("data:")) {
       const match = imageB64.match(/^data:([^;]+);base64,/);
-      if (match) {
-        mimeType = match[1];
-      }
+      if (match) mimeType = match[1];
     }
     
-    const base64Data = imageB64.includes(",") ? imageB64.split(",")[1] : imageB64;
-
-    const response = await ai.models.generateContent({
-      model: "gemini-flash-latest",
-      contents: {
-        parts: [
-          { text: PHOTO_PROMPT },
-          {
-            inlineData: {
-              data: base64Data,
-              mimeType: mimeType
-            }
-          }
-        ]
-      },
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: PHOTO_RESPONSE_SCHEMA,
-      },
+    const response = await fetch("/api/meal/parse-image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageB64, mimeType })
     });
 
-    const text = response.text || "{}";
-    const rawData = JSON.parse(text);
+    if (!response.ok) throw new Error("Server error");
+    const rawData = await response.json();
 
     if (rawData && rawData.items) {
       rawData.items = rawData.items.map((item: any) => {
