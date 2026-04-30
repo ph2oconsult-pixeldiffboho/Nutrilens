@@ -179,11 +179,10 @@ export function AddMeal({ onSave, onCancel }: AddMealProps) {
   const updateItemGrams = (index: number, grams: number) => {
     const items = [...stagedItems];
     const item = items[index];
-    const density = item.kcalPer100g || (item.baseNutrients?.calories.precise ? item.baseNutrients.calories.precise / 100 : 0);
     
-    // We assume density is per 100g
-    const multiplier = grams / 100;
-    const baseP = item.baseNutrients?.protein.precise || (item.nutrients.protein.precise / (item.grams || 1));
+    // Use ratio if we have baseWeightG, fallback to 100g
+    const ratio = item.baseWeightG ? (grams / item.baseWeightG) : (grams / 100);
+    const density = item.kcalPer100g || (item.baseNutrients?.calories.precise && item.baseWeightG ? (item.baseNutrients.calories.precise / item.baseWeightG * 100) : 0);
 
     items[index] = {
       ...item,
@@ -192,15 +191,24 @@ export function AddMeal({ onSave, onCancel }: AddMealProps) {
       nutrients: {
         ...item.nutrients,
         calories: {
-          precise: Math.round(density * grams),
-          min: Math.round(density * grams * 0.9),
-          max: Math.round(density * grams * 1.1),
+          precise: density ? Math.round((density * grams) / 100) : Math.round((item.baseNutrients?.calories.precise || 0) * ratio),
+          min: density ? Math.round(((density * grams) / 100) * 0.9) : Math.round((item.baseNutrients?.calories.min || 0) * ratio),
+          max: density ? Math.round(((density * grams) / 100) * 1.1) : Math.round((item.baseNutrients?.calories.max || 0) * ratio),
         },
         protein: {
-          // use a fixed ratio from base
-          precise: (item.baseNutrients?.protein.precise || 0) * (grams / 100),
-          min: (item.baseNutrients?.protein.min || 0) * (grams / 100),
-          max: (item.baseNutrients?.protein.max || 0) * (grams / 100)
+          precise: (item.baseNutrients?.protein.precise || 0) * ratio,
+          min: (item.baseNutrients?.protein.min || 0) * ratio,
+          max: (item.baseNutrients?.protein.max || 0) * ratio
+        },
+        carbs: {
+          precise: (item.baseNutrients?.carbs.precise || 0) * ratio,
+          min: (item.baseNutrients?.carbs.min || 0) * ratio,
+          max: (item.baseNutrients?.carbs.max || 0) * ratio
+        },
+        fat: {
+          precise: (item.baseNutrients?.fat.precise || 0) * ratio,
+          min: (item.baseNutrients?.fat.min || 0) * ratio,
+          max: (item.baseNutrients?.fat.max || 0) * ratio
         }
       }
     };
@@ -210,7 +218,7 @@ export function AddMeal({ onSave, onCancel }: AddMealProps) {
   const updateItemQuantity = (index: number, quantity: number) => {
     const items = [...stagedItems];
     const item = items[index];
-    const factor = quantity; // since base is 1 unit or original estimate
+    const factor = quantity; 
 
     items[index] = {
       ...item,
@@ -227,6 +235,16 @@ export function AddMeal({ onSave, onCancel }: AddMealProps) {
           precise: (item.baseNutrients?.protein.precise || 0) * factor,
           min: (item.baseNutrients?.protein.min || 0) * factor,
           max: (item.baseNutrients?.protein.max || 0) * factor
+        },
+        carbs: {
+          precise: (item.baseNutrients?.carbs.precise || 0) * factor,
+          min: (item.baseNutrients?.carbs.min || 0) * factor,
+          max: (item.baseNutrients?.carbs.max || 0) * factor
+        },
+        fat: {
+          precise: (item.baseNutrients?.fat.precise || 0) * factor,
+          min: (item.baseNutrients?.fat.min || 0) * factor,
+          max: (item.baseNutrients?.fat.max || 0) * factor
         }
       }
     };

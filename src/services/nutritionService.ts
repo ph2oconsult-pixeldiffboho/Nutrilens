@@ -35,6 +35,7 @@ Return structured JSON only.
 Rules:
 - Identify every food item visible.
 - Be realistic. A medium banana is ~90-100kcal.
+- Provide "estimated_weight_g" for each item (your best guess of the portion size in grams).
 - Provide "kcal_per_100g" for each item (best estimate for density).
 - If unsure, broaden the calorie range.
 - Provide a helpful clarifying question if it helps accuracy.`;
@@ -57,9 +58,10 @@ const PHOTO_SCHEMA = {
           carbs_g: { type: Type.NUMBER },
           fat_g: { type: Type.NUMBER },
           kcal_per_100g: { type: Type.NUMBER },
+          estimated_weight_g: { type: Type.NUMBER },
           uncertainty_reason: { type: Type.STRING },
         },
-        required: ["name", "portion_description", "estimate_kcal", "min_kcal", "max_kcal", "protein_g", "carbs_g", "fat_g", "kcal_per_100g", "uncertainty_reason"],
+        required: ["name", "portion_description", "estimate_kcal", "min_kcal", "max_kcal", "protein_g", "carbs_g", "fat_g", "kcal_per_100g", "estimated_weight_g", "uncertainty_reason"],
       },
     },
     input_quality: { type: Type.STRING },
@@ -81,6 +83,7 @@ const TEXT_SCHEMA = {
           name: { type: Type.STRING },
           servingSize: { type: Type.STRING },
           kcal_per_100g: { type: Type.NUMBER },
+          estimated_weight_g: { type: Type.NUMBER },
           nutrients: {
             type: Type.OBJECT,
             properties: {
@@ -125,7 +128,7 @@ const TEXT_SCHEMA = {
           },
           confidence: { type: Type.NUMBER },
         },
-        required: ["name", "servingSize", "kcal_per_100g", "nutrients", "confidence"],
+        required: ["name", "servingSize", "kcal_per_100g", "estimated_weight_g", "nutrients", "confidence"],
       },
     },
     input_quality: { type: Type.STRING },
@@ -281,7 +284,8 @@ function getHeuristicEstimate(description: string): GeminiResponse {
         confidence: 0.7,
         inputQuality: (parts.length === 1 && bestMatch === part) ? 'known_meal' : 'vague',
         uncertaintyReason: "Estimated from common values",
-        kcalPer100g: density
+        kcalPer100g: density,
+        baseWeightG: data.baseWeight || (data.unit.includes('100g') ? 100 : 150)
       });
     } else {
       // Small item and context heuristic
@@ -385,7 +389,8 @@ RULES:
           },
           confidence: item.confidence || 0.5,
           inputQuality: rawData.input_quality || 'partial',
-          kcalPer100g: item.kcal_per_100g
+          kcalPer100g: item.kcal_per_100g,
+          baseWeightG: item.estimated_weight_g
         };
       });
     }
@@ -453,7 +458,8 @@ export async function parseMealImage(imageB64: string): Promise<GeminiResponse> 
           confidence: 0.6,
           inputQuality: "photo_estimate",
           uncertaintyReason: item.uncertainty_reason,
-          kcalPer100g: item.kcal_per_100g
+          kcalPer100g: item.kcal_per_100g,
+          baseWeightG: item.estimated_weight_g
         };
       });
     }

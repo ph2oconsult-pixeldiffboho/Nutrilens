@@ -28,6 +28,7 @@ export interface FoodItem {
   inputQuality?: InputQuality;
   uncertaintyReason?: string;
   kcalPer100g?: number; // Estimated density (for logic)
+  baseWeightG?: number; // The weight associated with baseNutrients
   grams?: number; // User edited weight
   quantity?: number; // User edited count
 }
