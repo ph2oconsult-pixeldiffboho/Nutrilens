@@ -13,7 +13,7 @@ interface MealHistoryProps {
 }
 
 export function MealHistory({ meals, onDelete, onClearAll }: MealHistoryProps) {
-  const groupedMeals = meals.reduce((acc, meal) => {
+  const groupedMeals = meals.slice(0, 50).reduce((acc, meal) => {
     const date = new Date(meal.timestamp).toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
     if (!acc[date]) acc[date] = [];
     acc[date].push(meal);

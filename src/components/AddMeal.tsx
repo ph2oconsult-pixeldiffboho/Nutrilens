@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Mic, Send, Loader2, X, Check, Trash2, ArrowRight, Camera, Image as ImageIcon } from 'lucide-react';
 import { parseMealDescription, parseMealImage, GeminiResponse } from '../services/nutritionService';
 import { FoodItem, MoodType, InputQuality } from '../types';
+import { compressImage } from '../lib/imageUtils';
 
 interface AddMealProps {
   onSave: (description: string, items: FoodItem[], mood?: MoodType, timestamp?: number) => void;
@@ -55,9 +56,10 @@ export function AddMeal({ onSave, onCancel }: AddMealProps) {
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = async () => {
-        const base64 = reader.result as string;
+        const originalBase64 = reader.result as string;
         try {
-          const result = await parseMealImage(base64);
+          const compressedBase64 = await compressImage(originalBase64);
+          const result = await parseMealImage(compressedBase64);
           handleResult(result);
         } catch (err: any) {
           setError(err.message);

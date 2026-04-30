@@ -141,30 +141,107 @@ const TEXT_SCHEMA = {
 
 
 const HEURISTICS: Record<string, { kcal: number; protein: number; unit: string; baseWeight?: number }> = {
-  "sweet potato mash": { kcal: 105, protein: 1.8, unit: "100g", baseWeight: 100 },
-  "sweet potato": { kcal: 86, protein: 1.6, unit: "100g", baseWeight: 100 },
-  chicken: { kcal: 165, protein: 31, unit: "100g", baseWeight: 100 },
-  egg: { kcal: 70, protein: 6, unit: "1 large" },
-  rice: { kcal: 130, protein: 2.7, unit: "100g", baseWeight: 100 },
-  steak: { kcal: 250, protein: 26, unit: "100g", baseWeight: 100 },
-  apple: { kcal: 52, protein: 0.3, unit: "100g", baseWeight: 100 },
-  bread: { kcal: 265, protein: 9, unit: "100g", baseWeight: 100 },
-  banana: { kcal: 89, protein: 1.1, unit: "100g", baseWeight: 100 },
-  salmon: { kcal: 208, protein: 20, unit: "100g", baseWeight: 100 },
-  potato: { kcal: 77, protein: 2, unit: "100g", baseWeight: 100 },
-  milk: { kcal: 60, protein: 3.2, unit: "100ml", baseWeight: 100 },
-  avocado: { kcal: 160, protein: 2, unit: "100g", baseWeight: 100 },
-  oats: { kcal: 389, protein: 16.9, unit: "100g", baseWeight: 100 },
-  pasta: { kcal: 131, protein: 5, unit: "100g", baseWeight: 100 },
-  broccoli: { kcal: 34, protein: 2.8, unit: "100g", baseWeight: 100 },
+  // Proteins
+  "chicken breast": { kcal: 165, protein: 31, unit: "100g" },
+  "chicken wing": { kcal: 200, protein: 18, unit: "1 piece" },
+  "chicken thigh": { kcal: 209, protein: 26, unit: "100g" },
+  "chicken": { kcal: 165, protein: 31, unit: "100g" },
+  "steak": { kcal: 250, protein: 26, unit: "100g" },
+  "beef": { kcal: 250, protein: 26, unit: "100g" },
+  "minced beef": { kcal: 250, protein: 26, unit: "100g" },
+  "ground beef": { kcal: 250, protein: 26, unit: "100g" },
+  "pork": { kcal: 242, protein: 27, unit: "100g" },
+  "salmon": { kcal: 208, protein: 20, unit: "100g" },
+  "white fish": { kcal: 90, protein: 20, unit: "100g" },
+  "cod": { kcal: 82, protein: 18, unit: "100g" },
+  "tuna": { kcal: 132, protein: 28, unit: "100g" },
+  "egg": { kcal: 70, protein: 6, unit: "1 large" },
+  "boiled egg": { kcal: 70, protein: 6, unit: "1 large" },
+  "fried egg": { kcal: 90, protein: 6, unit: "1 large" },
+  "scrambled egg": { kcal: 100, protein: 7, unit: "1 large" },
+  "omelette": { kcal: 154, protein: 11, unit: "100g" },
+  "tofu": { kcal: 76, protein: 8, unit: "100g" },
+  
+  // Grains/Carbs
+  "white rice": { kcal: 130, protein: 2.7, unit: "100g" },
+  "brown rice": { kcal: 110, protein: 2.6, unit: "100g" },
+  "rice": { kcal: 130, protein: 2.7, unit: "100g" },
+  "pasta": { kcal: 131, protein: 5, unit: "100g" },
+  "spaghetti": { kcal: 158, protein: 6, unit: "100g" },
+  "bread": { kcal: 265, protein: 9, unit: "slice" },
+  "toast": { kcal: 80, protein: 3, unit: "1 slice" },
+  "bagel": { kcal: 250, protein: 10, unit: "1 bagel" },
+  "sweet potato": { kcal: 86, protein: 1.6, unit: "100g" },
+  "potato": { kcal: 77, protein: 2, unit: "100g" },
+  "fries": { kcal: 312, protein: 3.4, unit: "100g" },
+  "chips": { kcal: 312, protein: 3.4, unit: "100g" },
+  "oats": { kcal: 389, protein: 16.9, unit: "100g" },
+  "porridge": { kcal: 71, protein: 2.5, unit: "100g" },
+  "muesli": { kcal: 340, protein: 10, unit: "100g" },
+  "cereal": { kcal: 370, protein: 8, unit: "100g" },
+  
+  // Fruit/Veg
+  "apple": { kcal: 52, protein: 0.3, unit: "1 medium" },
+  "banana": { kcal: 89, protein: 1.1, unit: "1 medium" },
+  "orange": { kcal: 47, protein: 0.9, unit: "1 medium" },
+  "strawberry": { kcal: 32, protein: 0.7, unit: "100g" },
+  "blueberry": { kcal: 57, protein: 0.7, unit: "100g" },
+  "carrot": { kcal: 41, protein: 0.9, unit: "1 medium" },
+  "broccoli": { kcal: 34, protein: 2.8, unit: "100g" },
+  "spinach": { kcal: 23, protein: 2.9, unit: "100g" },
+  "salad": { kcal: 20, protein: 1, unit: "1 bowl" },
+  "avocado": { kcal: 160, protein: 2, unit: "100g" },
+  "cucumber": { kcal: 15, protein: 0.7, unit: "100g" },
+  "tomato": { kcal: 18, protein: 0.9, unit: "100g" },
+  
+  // Dairy/Drinks
+  "milk": { kcal: 42, protein: 3.4, unit: "100ml" },
+  "yogurt": { kcal: 60, protein: 3.5, unit: "100g" },
+  "greek yogurt": { kcal: 100, protein: 10, unit: "100g" },
+  "cheese": { kcal: 400, protein: 25, unit: "100g" },
+  "butter": { kcal: 717, protein: 0.9, unit: "1 tbsp" },
+  "coffee": { kcal: 2, protein: 0.1, unit: "1 cup" },
+  "black coffee": { kcal: 2, protein: 0.1, unit: "1 cup" },
+  "latte": { kcal: 120, protein: 7, unit: "1 cup" },
+  "cappuccino": { kcal: 80, protein: 5, unit: "1 cup" },
+  "espresso": { kcal: 3, protein: 0.1, unit: "1 shot" },
+  "tea": { kcal: 1, protein: 0, unit: "1 cup" },
+  "coke": { kcal: 140, protein: 0, unit: "1 can" },
+  "juice": { kcal: 45, protein: 0.5, unit: "100ml" },
+  
+  // Meals/Others
+  "pizza slice": { kcal: 285, protein: 12, unit: "1 slice" },
+  "pizza": { kcal: 266, protein: 11, unit: "100g" },
+  "burger": { kcal: 295, protein: 17, unit: "1 burger" },
+  "sandwich": { kcal: 250, protein: 12, unit: "1 sandwich" },
+  "sushi": { kcal: 150, protein: 5, unit: "1 roll" },
+  "soup": { kcal: 50, protein: 2, unit: "100ml" },
+  "curry": { kcal: 150, protein: 8, unit: "100g" },
+  "ramen": { kcal: 450, protein: 15, unit: "1 bowl" },
+  "pad thai": { kcal: 650, protein: 25, unit: "1 portion" },
+  "taco": { kcal: 210, protein: 12, unit: "1 taco" },
+  "burrito": { kcal: 700, protein: 30, unit: "1 burrito" },
+  "sushi roll": { kcal: 250, protein: 10, unit: "6 pieces" },
+  "pancake": { kcal: 227, protein: 6, unit: "1 pancake" },
+  "waffle": { kcal: 290, protein: 8, unit: "1 waffle" },
+  "soup bowl": { kcal: 150, protein: 5, unit: "1 bowl" },
+  "miso soup": { kcal: 40, protein: 3, unit: "1 bowl" },
+  "pho": { kcal: 450, protein: 25, unit: "1 bowl" },
+  "dim sum": { kcal: 60, protein: 3, unit: "1 piece" },
+  "dumpling": { kcal: 60, protein: 3, unit: "1 piece" },
+  "water": { kcal: 0, protein: 0, unit: "1 cup" },
+  "green tea": { kcal: 2, protein: 0, unit: "1 cup" },
 };
 
 function getHeuristicEstimate(description: string): GeminiResponse {
   const lower = description.toLowerCase();
   const items: FoodItem[] = [];
   
+  // Split description by common separators
+  const parts = lower.split(/,|\band\b| \+ /).map(p => p.trim()).filter(p => p.length > 0);
+  
   const weightMatch = lower.match(/(\d+(?:\.\d+)?)\s*(g|gram|grams|ml|milliliters|oz|ounce|ounces|kg|kilogram|kilograms)/);
-  let factor = 1;
+  let globalFactor = weightMatch ? 1 : 1.2;
 
   if (weightMatch) {
     const value = parseFloat(weightMatch[1]);
@@ -172,37 +249,71 @@ function getHeuristicEstimate(description: string): GeminiResponse {
     let grams = value;
     if (unit.startsWith('kg')) grams = value * 1000;
     if (unit.startsWith('oz') || unit.startsWith('ounce')) grams = value * 28.35;
-    factor = grams / 100;
-  } else {
-    factor = 1.5;
+    globalFactor = grams / 100;
   }
 
-  const sortedKeys = Object.keys(HEURISTICS).sort((a, b) => b.length - a.length);
-  const matchedParts: string[] = [];
-
-  for (const key of sortedKeys) {
-    if (lower.includes(key)) {
-      const alreadyMatched = matchedParts.some(part => part.includes(key));
-      if (!alreadyMatched) {
-        const data = HEURISTICS[key];
-        const estKcal = data.kcal * factor;
-        const estProtein = data.protein * factor;
-
-        items.push({
-          id: Math.random().toString(36).substr(2, 9),
-          name: key.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
-          servingSize: weightMatch ? `${weightMatch[1]}${weightMatch[2]}` : data.unit,
-          nutrients: {
-            calories: { min: estKcal * 0.9, max: estKcal * 1.1, precise: estKcal },
-            protein: { min: estProtein * 0.95, max: estProtein * 1.05, precise: estProtein },
-            carbs: { min: estKcal * 0.1, max: estKcal * 0.2, precise: estKcal * 0.15 },
-            fat: { min: estKcal * 0.05, max: estKcal * 0.1, precise: estKcal * 0.07 }
-          },
-          confidence: 0.8,
-          inputQuality: 'vague'
-        });
-        matchedParts.push(key);
+  for (const part of parts) {
+    let bestMatch: string | null = null;
+    let maxOverlap = 0;
+    
+    for (const key of Object.keys(HEURISTICS)) {
+      if (part.includes(key) && key.length > maxOverlap) {
+        bestMatch = key;
+        maxOverlap = key.length;
       }
+    }
+    
+    if (bestMatch) {
+      const data = HEURISTICS[bestMatch];
+      // If the part is exactly the match, use the weight factor IF it specifically refers to THIS part or IF there's only one part
+      const useFactor = (parts.length === 1 || part === bestMatch) ? globalFactor : 1.0;
+      
+      const estKcal = data.kcal * useFactor;
+      const estProtein = data.protein * useFactor;
+      
+      items.push({
+        id: Math.random().toString(36).substr(2, 9),
+        name: part.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+        servingSize: (useFactor !== 1.0 && weightMatch) ? `${weightMatch[1]}${weightMatch[2]}` : data.unit,
+        nutrients: {
+          calories: { min: estKcal * 0.8, max: estKcal * 1.2, precise: estKcal },
+          protein: { min: estProtein * 0.9, max: estProtein * 1.1, precise: estProtein },
+          carbs: { min: estKcal * 0.1, max: estKcal * 0.2, precise: estKcal * 0.15 },
+          fat: { min: estKcal * 0.05, max: estKcal * 0.1, precise: estKcal * 0.07 }
+        },
+        confidence: 0.7,
+        inputQuality: (parts.length === 1 && bestMatch === part) ? 'known_meal' : 'vague',
+        uncertaintyReason: "Estimated from common values"
+      });
+    } else {
+      // Small item and context heuristic
+      const isLowCal = /coffee|tea|water|carrot|cucumber|lettuce|celery|spinach|broccoli|kale|pepper/.test(part);
+      const isIndulgent = /pizza|burger|cake|cookie|brownie|fry|fries|chip|butter|oil|grease/.test(part);
+      const isPortionMatch = part.match(/small|large|tiny|huge|big/);
+      
+      let baseCals = 250; // default
+      if (isLowCal) baseCals = 15;
+      else if (isIndulgent) baseCals = 450;
+      
+      if (isPortionMatch) {
+        if (/small|tiny/.test(part)) baseCals *= 0.6;
+        if (/large|huge|big/.test(part)) baseCals *= 1.6;
+      }
+      
+      items.push({
+        id: Math.random().toString(36).substr(2, 9),
+        name: part.charAt(0).toUpperCase() + part.slice(1),
+        servingSize: "1 portion",
+        nutrients: {
+          calories: { min: baseCals * 0.5, max: baseCals * 1.5, precise: baseCals },
+          protein: { min: baseCals * 0.02, max: baseCals * 0.08, precise: baseCals * 0.05 },
+          carbs: { min: baseCals * 0.1, max: baseCals * 0.2, precise: baseCals * 0.15 },
+          fat: { min: baseCals * 0.01, max: baseCals * 0.05, precise: baseCals * 0.03 }
+        },
+        confidence: 0.1,
+        inputQuality: 'vague',
+        uncertaintyReason: "Generic fallback"
+      });
     }
   }
 
@@ -212,12 +323,12 @@ function getHeuristicEstimate(description: string): GeminiResponse {
       name: "Generic Meal",
       servingSize: "Standard Portion",
       nutrients: {
-        calories: { min: 400, max: 800, precise: 600 },
-        protein: { min: 15, max: 35, precise: 25 },
-        carbs: { min: 40, max: 80, precise: 60 },
-        fat: { min: 15, max: 45, precise: 30 }
+        calories: { min: 250, max: 600, precise: 400 },
+        protein: { min: 10, max: 25, precise: 18 },
+        carbs: { min: 30, max: 60, precise: 45 },
+        fat: { min: 10, max: 25, precise: 18 }
       },
-      confidence: 0.2,
+      confidence: 0.1,
       inputQuality: 'vague'
     });
   }
@@ -226,23 +337,26 @@ function getHeuristicEstimate(description: string): GeminiResponse {
     meal_name: "Rough Estimate",
     items,
     input_quality: "vague",
-    clarifying_question: "I've made a rough estimate based on common components. Was this a large portion?",
-    clarifying_options: ["Small", "Average", "Large"],
+    clarifying_question: "I've matched these items using standard values. Could you specify weight or portion sizes for better accuracy?",
+    clarifying_options: ["100g", "Average Portion", "Large Portion"],
     is_fallback: true
   };
 }
 
 export async function parseMealDescription(description: string): Promise<GeminiResponse> {
   try {
-    const prompt = `Parse this meal: "${description}". 
-Return structured JSON only. 
-Rules:
-- STRICT WEIGHT CALCULATION: If weight (e.g. "100g") is provided, base calories strictly on weight.
-- If no weight, assume standard portion sizes (e.g. "a bowl" ~ 350g, "a slice" ~ 40g).
-- Always provide min/max/precise for nutrients.`;
+    const prompt = `You are a professional nutrition analyzer. Parse this meal: "${description}".
+RULES:
+1. PRECISION: If specific quantities (g, oz, cups, pieces) are mentioned, base calculations strictly on those.
+2. NO GENERIC 600KCAL: If the food is low calorie (coffee, carrot, etc.), do NOT return high-calorie estimates.
+3. INGREDIENT DECOMPOSITION: If the description contains multiple items (e.g. "coffee and a croissant"), return them as separate items in the array.
+4. CALORIC DENSITY: A cup of black coffee is ~2kcal. A carrot is ~30-40kcal. 
+5. UNCERTAINTY: Use the uncertainty_reason to explain why you chose a specific range.
+
+Return structured JSON only.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.1-pro-preview",
+      model: "gemini-1.5-flash",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -253,7 +367,7 @@ Rules:
     const text = response.text || "{}";
     const rawData = JSON.parse(text);
     
-    if (rawData.items) {
+    if (rawData && rawData.items) {
       rawData.items = rawData.items.map((item: any) => {
         const nutrients = item.nutrients || {};
         const cal = nutrients.calories || { precise: 0, min: 0, max: 0 };
@@ -261,9 +375,9 @@ Rules:
         const crb = nutrients.carbs || { precise: 0, min: 0, max: 0 };
         const fat = nutrients.fat || { precise: 0, min: 0, max: 0 };
 
-        cal.precise = Math.max(10, Math.min(2000, cal.precise || 0));
-        cal.min = Math.max(5, Math.min(cal.precise, cal.min || 0));
-        cal.max = Math.max(cal.precise, Math.min(3000, cal.max || 0));
+        cal.precise = Math.max(0, cal.precise || 0);
+        cal.min = Math.max(0, cal.min || 0);
+        cal.max = Math.max(cal.precise, cal.max || 0);
 
         return {
           ...item,
@@ -273,13 +387,20 @@ Rules:
             protein: pro,
             carbs: crb,
             fat: fat
-          }
+          },
+          confidence: item.confidence || 0.5,
+          inputQuality: rawData.input_quality || 'partial'
         };
       });
     }
 
-
-    return rawData as GeminiResponse;
+    return {
+      meal_name: rawData.meal_name || "Meal Estimate",
+      items: rawData.items || [],
+      input_quality: (rawData.input_quality || "partial") as InputQuality,
+      clarifying_question: rawData.clarifying_question || null,
+      clarifying_options: rawData.clarifying_options || []
+    };
   } catch (error) {
     console.error("Gemini Error:", error);
     return getHeuristicEstimate(description);
@@ -300,7 +421,7 @@ export async function parseMealImage(imageB64: string): Promise<GeminiResponse> 
     const base64Data = imageB64.includes(",") ? imageB64.split(",")[1] : imageB64;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.1-pro-preview",
+      model: "gemini-flash-latest",
       contents: {
         parts: [
           { text: PHOTO_PROMPT },
@@ -321,7 +442,7 @@ export async function parseMealImage(imageB64: string): Promise<GeminiResponse> 
     const text = response.text || "{}";
     const rawData = JSON.parse(text);
 
-    if (rawData.items) {
+    if (rawData && rawData.items) {
       rawData.items = rawData.items.map((item: any) => {
         const est = item.estimate_kcal || 0;
         const minVal = item.min_kcal || Math.round(est * 0.6);
@@ -329,8 +450,8 @@ export async function parseMealImage(imageB64: string): Promise<GeminiResponse> 
 
         return {
           id: Math.random().toString(36).substr(2, 9),
-          name: item.name,
-          servingSize: item.portion_description,
+          name: item.name || "Unknown Food",
+          servingSize: item.portion_description || "Estimated portion",
           nutrients: {
             calories: { min: minVal, max: maxVal, precise: est },
             protein: { min: (item.protein_g || 0) * 0.9, max: (item.protein_g || 0) * 1.1, precise: item.protein_g || 0 },
@@ -344,7 +465,13 @@ export async function parseMealImage(imageB64: string): Promise<GeminiResponse> 
       });
     }
 
-    return rawData as GeminiResponse;
+    return {
+      meal_name: rawData.meal_name || "Photo Analysis",
+      items: rawData.items || [],
+      input_quality: (rawData.input_quality || "photo_estimate") as InputQuality,
+      clarifying_question: rawData.clarifying_question || null,
+      clarifying_options: rawData.clarifying_options || []
+    };
   } catch (error) {
     console.error("Gemini Image Error:", error);
     throw new Error("Unable to analyze this photo. Try using text or voice.");

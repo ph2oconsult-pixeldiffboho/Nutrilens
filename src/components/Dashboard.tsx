@@ -158,7 +158,22 @@ export function Dashboard({ progress, targets, todayMeals, insightText, nextGuid
               className="apple-card p-6 flex items-center justify-between transition-all hover:bg-white/10 bg-white/[0.02]"
             >
               <div className="space-y-1">
-                <p className="font-bold tracking-tight text-white/90">{meal.description}</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-bold tracking-tight text-white/90">{meal.description}</p>
+                  {meal.confidenceScore < 0.4 && (
+                    <div className="group relative">
+                      <motion.div 
+                        animate={{ opacity: [0.4, 1, 0.4] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                      >
+                        <Info size={12} className="text-accent cursor-help" />
+                      </motion.div>
+                      <div className="absolute bottom-full left-0 mb-2 p-2 bg-black/90 border border-white/10 rounded text-[10px] w-32 hidden group-hover:block z-50">
+                        Rough estimate. Clarify ingredients for better accuracy.
+                      </div>
+                    </div>
+                  )}
+                </div>
                 <p className="text-[10px] uppercase font-bold tracking-widest text-secondary">
                   {new Date(meal.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </p>
